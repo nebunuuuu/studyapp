@@ -15,7 +15,8 @@ const passport = require("passport");
 const path = require("path");
 const os = require("os");
 
-require("./db"); // inițializează DB + creează admin la primul start
+const db = require("./db");
+db.ensureAdmin(); // inițializează DB + creează admin la primul start
 
 const { router: authRouter } = require("./auth");
 const apiRouter = require("./api");

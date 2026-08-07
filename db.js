@@ -9,6 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 
 const DB_FILE = path.join(__dirname, "studyapp-data.json");
 
@@ -557,9 +558,45 @@ function findResource(id, userId) {
   const db = loadDB();
   return db.resources.find((r) => r.id === id && r.user_id === userId) || null;
 }
+function ensureAdmin() {
+  const email = (process.env.ADMIN_EMAIL || "").trim();
+  const username = (process.env.ADMIN_USERNAME || "").trim();
+  const password = process.env.ADMIN_PASSWORD || "";
+
+  if (!email || !username || !password) {
+    console.warn("ADMIN_* nu sunt configurate; adminul nu a fost creat.");
+    return null;
+  }
+
+  let user = findUserByIdentifier(email) || findUserByIdentifier(username);
+  const password_hash = bcrypt.hashSync(password, 10);
+
+  if (!user) {
+    user = insertUser({
+      name: username,
+      email,
+      username,
+      password_hash,
+      role: "admin"
+    });
+
+    console.log(`Cont admin creat pentru ${email}`);
+    return user;
+  }
+
+  user = updateUser(user.id, {
+    email,
+    username,
+    password_hash,
+    role: "admin"
+  });
+
+  console.log(`Cont admin actualizat pentru ${email}`);
+  return user;
+}
 
 module.exports = {
-  uid, loadDB, saveDB,
+  uid, loadDB, saveDB, ensureAdmin,
   findUserById, findUserByIdentifier, insertUser, updateUser,
   getWallet, addSP, claimDailyBonus, claimAdWatch, redeemPackage,
   purchaseItem, equipItem, getShopCatalog, getSPPackages, awardTaskOnTimeIfEligible,
