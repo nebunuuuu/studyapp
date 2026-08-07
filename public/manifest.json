@@ -1,0 +1,26 @@
+{
+  "name": "StudyApp",
+  "short_name": "StudyApp",
+  "description": "Notițe, materii, task-uri și deadline-uri, într-o singură aplicație.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f5fb",
+  "theme_color": "#5b5bf0",
+  "lang": "ro",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
