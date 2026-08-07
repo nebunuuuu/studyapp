@@ -61,11 +61,13 @@ router.post("/register", async (req, res) => {
   const { name, email, password, educationLevel } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: "Toate câmpurile sunt necesare." });
   if (password.length < 8) return res.status(400).json({ error: "Parola trebuie să aibă minim 8 caractere." });
-  if (db.findUserByIdentifier(email)) return res.status(409).json({ error: "Există deja un cont cu acest email." });
+  if (await db.findUserByIdentifierPg(email)) {
+  return res.status(409).json({ error: "Există deja un cont cu acest email." });
+}
 
   const password_hash = await bcrypt.hash(password, 10);
   const username = email.split("@")[0];
-  const user = db.insertUser({
+  const user = await db.insertUserPg({
     name, email, username, password_hash,
     education_level: educationLevel === "liceu" ? "liceu" : "facultate"
   });
@@ -76,7 +78,7 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) return res.status(400).json({ error: "Completează toate câmpurile." });
-  const user = db.findUserByIdentifier(identifier);
+  const user = await db.findUserByIdentifierPg(identifier);
   if (!user || !user.password_hash) return res.status(401).json({ error: "Credențiale incorecte." });
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: "Credențiale incorecte." });
@@ -84,8 +86,8 @@ router.post("/login", async (req, res) => {
   res.json({ token, user: publicUser(user) });
 });
 
-router.get("/me", authMiddleware, (req, res) => {
-  const user = db.findUserById(req.userId);
+router.get("/me", authMiddleware, async (req, res) => {
+  const user = await db.findUserByIdPg(req.userId);
   if (!user) return res.status(404).json({ error: "Utilizator inexistent." });
   res.json({ user: publicUser(user) });
 });
@@ -131,9 +133,9 @@ router.get("/google/callback", async (req, res) => {
     });
     const profile = await profileRes.json();
 
-    let user = db.findUserByIdentifier(profile.email);
+    let user = await db.findUserByIdentifierPg(profile.email);
     if (!user) {
-      user = db.insertUser({
+      user = await db.insertUserPg({
         name: profile.name || profile.email.split("@")[0],
         email: profile.email,
         username: profile.email.split("@")[0],

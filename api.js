@@ -34,12 +34,12 @@ const upload = multer({
 });
 
 /* ===================== SETĂRI UTILIZATOR ===================== */
-router.get("/settings", (req, res) => {
-  const user = db.findUserById(req.userId);
+router.get("/settings", async (req, res) => {
+  const user = await db.findUserByIdPg(req.userId);
   res.json(publicUser(user));
 });
 
-router.put("/settings", (req, res) => {
+router.put("/settings", async (req, res) => {
   const { moodleIcsUrl, reminderHoursBefore, educationLevel, language, openaiApiKey } = req.body;
   const patch = {};
   if (moodleIcsUrl !== undefined) patch.moodle_ics_url = moodleIcsUrl || null;
@@ -47,19 +47,22 @@ router.put("/settings", (req, res) => {
   if (educationLevel && ["facultate", "liceu"].includes(educationLevel)) patch.education_level = educationLevel;
   if (language && ["ro", "en"].includes(language)) patch.language = language;
   if (openaiApiKey !== undefined && openaiApiKey !== "") patch.openai_api_key = openaiApiKey;
-  const updated = db.updateUser(req.userId, patch);
+  const updated = await db.updateUserPg(req.userId, patch);
   res.json(publicUser(updated));
 });
 
 /* ===================== WALLET (StudyPoints) ===================== */
-router.get("/wallet", (req, res) => {
-  const wallet = db.getWallet(req.userId);
+router.get("/wallet", async (req, res) => {
+  const wallet = await db.getWalletPg(req.userId);
   if (!wallet) return res.status(404).json({ error: "Utilizator inexistent." });
   res.json(wallet);
 });
+router.get("/wallet/packages", (req, res) => {
+  res.json(db.getSPPackages());
+});
 
-router.post("/wallet/daily-bonus", (req, res) => {
-  const result = db.claimDailyBonus(req.userId);
+router.post("/wallet/daily-bonus", async (req, res) => {
+  const result = await db.claimDailyBonusPg(req.userId);
   if (result.error === "already_claimed") {
     return res.status(409).json({ error: "Ai revendicat deja bonusul de azi.", balance: result.balance });
   }
@@ -67,8 +70,8 @@ router.post("/wallet/daily-bonus", (req, res) => {
   res.json(result);
 });
 
-router.post("/wallet/watch-ad", (req, res) => {
-  const result = db.claimAdWatch(req.userId);
+router.post("/wallet/watch-ad", async (req, res) => {
+  const result = await db.claimAdWatchPg(req.userId);
   if (result.error === "cooldown") {
     return res.status(429).json({ error: `Mai poți viziona una în ${result.remainingMin} min.`, remainingMin: result.remainingMin });
   }
@@ -76,28 +79,24 @@ router.post("/wallet/watch-ad", (req, res) => {
   res.json(result);
 });
 
-router.get("/wallet/packages", (req, res) => {
-  res.json(db.getSPPackages());
-});
-
-/* Simulare de cumpărare pachet — fără procesare de plăți reale încă.
-   Când vei conecta Stripe, acest endpoint devine cel apelat DUPĂ ce
-   Stripe confirmă plata (webhook), nu direct din frontend. */
-router.post("/wallet/redeem-package", (req, res) => {
+router.post("/wallet/redeem-package", async (req, res) => {
   const { packageId } = req.body;
-  const result = db.redeemPackage(req.userId, packageId);
+  const result = await db.redeemPackagePg(req.userId, packageId);
   if (result.error) return res.status(400).json({ error: result.error });
   res.json(result);
 });
+/* Simulare de cumpărare pachet — fără procesare de plăți reale încă.
+   Când vei conecta Stripe, acest endpoint devine cel apelat DUPĂ ce
+   Stripe confirmă plata (webhook), nu direct din frontend. */
+
 
 /* ===================== SHOP ===================== */
 router.get("/shop/catalog", (req, res) => {
   res.json(db.getShopCatalog());
 });
-
-router.post("/shop/purchase", (req, res) => {
+router.post("/shop/purchase", async (req, res) => {
   const { itemId } = req.body;
-  const result = db.purchaseItem(req.userId, itemId);
+  const result = await db.purchaseItemPg(req.userId, itemId);
   if (result.error === "already_owned") return res.status(409).json({ error: "Ai deja acest item." });
   if (result.error === "insufficient_funds") {
     return res.status(402).json({ error: `Îți mai sunt necesare ${result.needed} SP.`, needed: result.needed });
@@ -106,9 +105,9 @@ router.post("/shop/purchase", (req, res) => {
   res.status(201).json(result);
 });
 
-router.post("/shop/equip", (req, res) => {
+router.post("/shop/equip", async (req, res) => {
   const { itemId } = req.body;
-  const result = db.equipItem(req.userId, itemId);
+  const result = await db.equipItemPg(req.userId, itemId);
   if (result.error === "not_owned") return res.status(403).json({ error: "Nu deții acest item." });
   if (result.error) return res.status(404).json({ error: result.error });
   res.json(result);
@@ -249,7 +248,7 @@ function parseICS(text) {
 }
 
 router.post("/tasks/sync-moodle", async (req, res) => {
-  const user = db.findUserById(req.userId);
+  const user = await db.findUserByIdPg(req.userId);
   const { courseId } = req.body;
   if (!user.moodle_ics_url) {
     return res.status(400).json({ error: "Nu ai salvat încă un URL de calendar Moodle în Setări." });
@@ -355,7 +354,7 @@ router.delete("/courses/:courseId/flashcard-decks/:deckId/cards/:cardId", (req, 
 /* Generare AI de flashcards — necesită cheie OpenAI salvată în Setări.
    Fără cheie, returnăm o eroare clară în loc să eșuăm silențios. */
 router.post("/courses/:courseId/flashcard-decks/generate-ai", async (req, res) => {
-  const user = db.findUserById(req.userId);
+  const user = await db.findUserByIdPg(req.userId);
   if (!user.openai_api_key) {
     return res.status(400).json({ error: "no_api_key", message: "Adaugă o cheie API OpenAI în Setări pentru a genera flashcards cu AI." });
   }

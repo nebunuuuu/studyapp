@@ -7,11 +7,16 @@
    ============================================================ */
 
 const fs = require("fs");
+const { Pool } = require("pg");
 const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 
 const DB_FILE = path.join(__dirname, "studyapp-data.json");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 function uid() {
   return crypto.randomBytes(9).toString("hex");
@@ -86,7 +91,7 @@ function migrate(data) {
   data.courses.forEach((c) => {
     if (c.gradingCategories === undefined) { c.gradingCategories = []; changed = true; }
     if (c.grades === undefined) { c.grades = []; changed = true; }
-    if (c.period === undefined) { c.period = null; changed = true; }  
+    if (c.period === undefined) { c.period = null; changed = true; }
     if (c.attendance === undefined) { c.attendance = { present: 0, absent: 0 }; changed = true; }
     if (c.flashcardDecks === undefined) { c.flashcardDecks = []; changed = true; }
   });
@@ -594,9 +599,215 @@ function ensureAdmin() {
   console.log(`Cont admin actualizat pentru ${email}`);
   return user;
 }
+async function findUserByIdPg(id) {
+  const { rows } = await pool.query("SELECT * FROM users WHERE id = $1 LIMIT 1", [id]);
+  return rows[0] || null;
+}
 
+async function findUserByIdentifierPg(identifier) {
+  const { rows } = await pool.query(
+    "SELECT * FROM users WHERE email = $1 OR username = $1 LIMIT 1",
+    [identifier]
+  );
+  return rows[0] || null;
+}
+
+async function insertUserPg(user) {
+  const newUser = {
+    id: uid(),
+    sp_balance: 50,
+    last_daily_bonus_date: null,
+    last_ad_watch_at: null,
+    owned_items: [],
+    active_theme: null,
+    active_frame: null,
+    is_pro: false,
+    education_level: "facultate",
+    language: "ro",
+    reminder_hours_before: [24, 1],
+    moodle_ics_url: null,
+    role: "user",
+    ...user
+  };
+
+  const query = `
+    INSERT INTO users (
+      id, name, email, username, password_hash, role,
+      education_level, language, moodle_ics_url, reminder_hours_before,
+      sp_balance, owned_items, active_theme, active_frame, is_pro,
+      last_daily_bonus_date, last_ad_watch_at, openai_api_key, created_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6,
+      $7, $8, $9, $10,
+      $11, $12, $13, $14, $15,
+      $16, $17, $18, NOW()
+    )
+    RETURNING *;
+  `;
+
+  const values = [
+    newUser.id,
+    newUser.name,
+    newUser.email,
+    newUser.username,
+    newUser.password_hash || null,
+    newUser.role,
+    newUser.education_level,
+    newUser.language,
+    newUser.moodle_ics_url,
+    JSON.stringify(newUser.reminder_hours_before),
+    newUser.sp_balance,
+    JSON.stringify(newUser.owned_items),
+    newUser.active_theme,
+    newUser.active_frame,
+    newUser.is_pro,
+    newUser.last_daily_bonus_date,
+    newUser.last_ad_watch_at,
+    newUser.openai_api_key || null
+  ];
+
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+}
+
+async function updateUserPg(id, patch) {
+  const current = await findUserByIdPg(id);
+  if (!current) return null;
+
+  const updated = { ...current, ...patch };
+
+  const query = `
+    UPDATE users SET
+      name = $2,
+      email = $3,
+      username = $4,
+      password_hash = $5,
+      role = $6,
+      education_level = $7,
+      language = $8,
+      moodle_ics_url = $9,
+      reminder_hours_before = $10,
+      sp_balance = $11,
+      owned_items = $12,
+      active_theme = $13,
+      active_frame = $14,
+      is_pro = $15,
+      last_daily_bonus_date = $16,
+      last_ad_watch_at = $17,
+      openai_api_key = $18
+    WHERE id = $1
+    RETURNING *;
+  `;
+
+  const values = [
+    id,
+    updated.name,
+    updated.email,
+    updated.username,
+    updated.password_hash || null,
+    updated.role,
+    updated.education_level,
+    updated.language,
+    updated.moodle_ics_url,
+    JSON.stringify(updated.reminder_hours_before || [24, 1]),
+    updated.sp_balance,
+    JSON.stringify(updated.owned_items || []),
+    updated.active_theme,
+    updated.active_frame,
+    updated.is_pro,
+    updated.last_daily_bonus_date,
+    updated.last_ad_watch_at,
+    updated.openai_api_key || null
+  ];
+
+  const { rows } = await pool.query(query, values);
+  return rows[0] || null;
+}
+async function getWalletPg(userId) {
+  const user = await findUserByIdPg(userId);
+  if (!user) return null;
+  return {
+    balance: user.sp_balance,
+    ownedItems: user.owned_items,
+    activeTheme: user.active_theme,
+    activeFrame: user.active_frame,
+    isPro: user.is_pro,
+    lastDailyBonusDate: user.last_daily_bonus_date,
+    lastAdWatchAt: user.last_ad_watch_at
+  };
+}
+
+async function claimDailyBonusPg(userId) {
+  const user = await findUserByIdPg(userId);
+  if (!user) return { error: "Utilizator inexistent." };
+  const today = new Date().toISOString().slice(0, 10);
+  if (user.last_daily_bonus_date === today) {
+    return { error: "already_claimed", balance: user.sp_balance };
+  }
+  const updated = await updateUserPg(userId, {
+    sp_balance: user.sp_balance + 20,
+    last_daily_bonus_date: today
+  });
+  return { balance: updated.sp_balance, gained: 20 };
+}
+
+async function claimAdWatchPg(userId) {
+  const user = await findUserByIdPg(userId);
+  if (!user) return { error: "Utilizator inexistent." };
+  const now = Date.now();
+  const last = user.last_ad_watch_at ? new Date(user.last_ad_watch_at).getTime() : 0;
+  const cooldownMs = 30 * 60 * 1000;
+  if (now - last < cooldownMs) {
+    return { error: "cooldown", remainingMin: Math.ceil((cooldownMs - (now - last)) / 60000) };
+  }
+  const updated = await updateUserPg(userId, {
+    sp_balance: user.sp_balance + 15,
+    last_ad_watch_at: new Date().toISOString()
+  });
+  return { balance: updated.sp_balance, gained: 15 };
+}
+
+async function purchaseItemPg(userId, itemId) {
+  const item = getShopCatalog().find((i) => i.id === itemId);
+  if (!item) return { error: "Item inexistent." };
+  const user = await findUserByIdPg(userId);
+  if (!user) return { error: "Utilizator inexistent." };
+  if (user.owned_items.includes(itemId)) return { error: "already_owned" };
+  if (user.sp_balance < item.price) return { error: "insufficient_funds", needed: item.price - user.sp_balance };
+
+  const updated = await updateUserPg(userId, {
+    sp_balance: user.sp_balance - item.price,
+    owned_items: [...user.owned_items, itemId]
+  });
+  return { balance: updated.sp_balance, item };
+}
+
+async function equipItemPg(userId, itemId) {
+  const item = getShopCatalog().find((i) => i.id === itemId);
+  if (!item) return { error: "Item inexistent." };
+  const user = await findUserByIdPg(userId);
+  if (!user) return { error: "Utilizator inexistent." };
+  if (!user.owned_items.includes(itemId)) return { error: "not_owned" };
+
+  const patch = {};
+  if (item.type === "theme") patch.active_theme = itemId;
+  if (item.type === "frame") patch.active_frame = user.active_frame === itemId ? null : itemId;
+
+  const updated = await updateUserPg(userId, patch);
+  return { activeTheme: updated.active_theme, activeFrame: updated.active_frame };
+}
+
+async function redeemPackagePg(userId, packageId) {
+  const pkg = getSPPackages().find((p) => p.id === packageId);
+  if (!pkg) return { error: "Pachet inexistent." };
+  const user = await findUserByIdPg(userId);
+  if (!user) return { error: "Utilizator inexistent." };
+  const updated = await updateUserPg(userId, { sp_balance: user.sp_balance + pkg.sp });
+  return { balance: updated.sp_balance, gained: pkg.sp, package: pkg };
+}
 module.exports = {
-  uid, loadDB, saveDB, ensureAdmin,
+  uid, loadDB, saveDB, ensureAdmin, findUserByIdPg,
+  findUserByIdentifierPg, insertUserPg, updateUserPg,
   findUserById, findUserByIdentifier, insertUser, updateUser,
   getWallet, addSP, claimDailyBonus, claimAdWatch, redeemPackage,
   purchaseItem, equipItem, getShopCatalog, getSPPackages, awardTaskOnTimeIfEligible,
@@ -606,5 +817,6 @@ module.exports = {
   listTasks, findTask, insertTask, bulkInsertTasks, updateTaskStatus, deleteTask,
   insertResource, listResources, findResource, recordAttendance, undoLastAttendance, resetAttendance,
   addFlashcardDeck, deleteFlashcardDeck, addFlashcard, deleteFlashcard,
-  listScheduleEntries, insertScheduleEntry, updateScheduleEntry, deleteScheduleEntry
+  listScheduleEntries, insertScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getWalletPg, claimDailyBonusPg, claimAdWatchPg,
+purchaseItemPg, equipItemPg, redeemPackagePg,
 };
