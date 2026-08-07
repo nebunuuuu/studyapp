@@ -1,6 +1,0 @@
-node_modules/
-.env
-studyapp-data.json
-uploads/
-*.log
-.DS_Store
