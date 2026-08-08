@@ -16,7 +16,9 @@ const db = require("./db");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "studyapp-dev-secret-schimba-in-productie";
-
+const GOOGLE_REDIRECT_URI =
+  process.env.GOOGLE_REDIRECT_URI ||
+  "http://localhost:3000/auth/google/callback";
 function publicUser(user) {
   return {
     id: user.id,
@@ -98,7 +100,7 @@ router.get("/google", (req, res) => {
   if (!clientId) {
     return res.status(500).send("Google OAuth nu este configurat (GOOGLE_CLIENT_ID lipsă din .env).");
   }
-  const redirectUri = `${req.protocol}://${req.get("host")}/auth/google/callback`;
+const redirectUri = GOOGLE_REDIRECT_URI;
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -116,7 +118,7 @@ router.get("/google/callback", async (req, res) => {
   if (!code || !clientId || !clientSecret) return res.redirect("/?error=oauth_config");
 
   try {
-    const redirectUri = `${req.protocol}://${req.get("host")}/auth/google/callback`;
+   const redirectUri = GOOGLE_REDIRECT_URI;
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
