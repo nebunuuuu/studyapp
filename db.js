@@ -740,6 +740,7 @@ function mapCourseRow(row) {
     grades: row.grades || [],
     attendance: row.attendance || { present: 0, absent: 0 },
     flashcardDecks: row.flashcard_decks || [],
+    resources: row.resources || [],
     created_at: row.created_at
   };
 }
@@ -825,6 +826,293 @@ async function updateCoursePg(id, userId, patch) {
 
   return mapCourseRow(rows[0]);
 }
+async function addGradingCategoryPg(courseId, userId, { name, weight }) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const category = {
+    id: uid(),
+    name,
+    weight: Number(weight),
+    createdAt: new Date().toISOString()
+  };
+
+  return updateCoursePg(courseId, userId, {
+    gradingCategories: [
+      ...(course.gradingCategories || []),
+      category
+    ]
+  });
+}
+
+async function updateGradingCategoryPg(
+  courseId,
+  userId,
+  categoryId,
+  patch
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const categories = course.gradingCategories || [];
+  const exists = categories.some((category) => category.id === categoryId);
+
+  if (!exists) return null;
+
+  const updatedCategories = categories.map((category) =>
+    category.id === categoryId
+      ? {
+          ...category,
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.weight !== undefined
+            ? { weight: Number(patch.weight) }
+            : {})
+        }
+      : category
+  );
+
+  return updateCoursePg(courseId, userId, {
+    gradingCategories: updatedCategories
+  });
+}
+
+async function deleteGradingCategoryPg(
+  courseId,
+  userId,
+  categoryId
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const categories = course.gradingCategories || [];
+  const exists = categories.some((category) => category.id === categoryId);
+
+  if (!exists) return null;
+
+  return updateCoursePg(courseId, userId, {
+    gradingCategories: categories.filter(
+      (category) => category.id !== categoryId
+    ),
+    grades: (course.grades || []).filter(
+      (grade) => grade.categoryId !== categoryId
+    )
+  });
+}
+
+async function addGradePg(
+  courseId,
+  userId,
+  { categoryId, label, value, maxValue }
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const categoryExists = (course.gradingCategories || []).some(
+    (category) => category.id === categoryId
+  );
+
+  if (!categoryExists) return null;
+
+  const grade = {
+    id: uid(),
+    categoryId,
+    label: label || "",
+    value: Number(value),
+    maxValue: Number(maxValue) || 10,
+    addedAt: new Date().toISOString()
+  };
+
+  return updateCoursePg(courseId, userId, {
+    grades: [
+      ...(course.grades || []),
+      grade
+    ]
+  });
+}
+
+async function deleteGradePg(courseId, userId, gradeId) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const grades = course.grades || [];
+  const exists = grades.some((grade) => grade.id === gradeId);
+
+  if (!exists) return null;
+
+  return updateCoursePg(courseId, userId, {
+    grades: grades.filter((grade) => grade.id !== gradeId)
+  });
+}
+async function recordAttendancePg(courseId, userId, type) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const attendance = {
+    present: Number(course.attendance?.present || 0),
+    absent: Number(course.attendance?.absent || 0)
+  };
+
+  attendance[type] += 1;
+
+  return updateCoursePg(courseId, userId, {
+    attendance
+  });
+}
+
+async function undoLastAttendancePg(courseId, userId, type) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const attendance = {
+    present: Number(course.attendance?.present || 0),
+    absent: Number(course.attendance?.absent || 0)
+  };
+
+  if (attendance[type] > 0) {
+    attendance[type] -= 1;
+  }
+
+  return updateCoursePg(courseId, userId, {
+    attendance
+  });
+}
+
+async function resetAttendancePg(courseId, userId) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  return updateCoursePg(courseId, userId, {
+    attendance: {
+      present: 0,
+      absent: 0
+    }
+  });
+}
+async function addFlashcardDeckPg(
+  courseId,
+  userId,
+  { name, cards }
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const deck = {
+    id: uid(),
+    name: name || "Deck nou",
+    cards: Array.isArray(cards) ? cards : [],
+    createdAt: new Date().toISOString()
+  };
+
+  return updateCoursePg(courseId, userId, {
+    flashcardDecks: [
+      ...(course.flashcardDecks || []),
+      deck
+    ]
+  });
+}
+
+async function deleteFlashcardDeckPg(
+  courseId,
+  userId,
+  deckId
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const decks = course.flashcardDecks || [];
+  const exists = decks.some((deck) => deck.id === deckId);
+
+  if (!exists) return null;
+
+  return updateCoursePg(courseId, userId, {
+    flashcardDecks: decks.filter(
+      (deck) => deck.id !== deckId
+    )
+  });
+}
+
+async function addFlashcardPg(
+  courseId,
+  userId,
+  deckId,
+  { front, back }
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const decks = course.flashcardDecks || [];
+  const deckExists = decks.some((deck) => deck.id === deckId);
+
+  if (!deckExists) return null;
+
+  const card = {
+    id: uid(),
+    front,
+    back,
+    createdAt: new Date().toISOString()
+  };
+
+  const updatedDecks = decks.map((deck) =>
+    deck.id === deckId
+      ? {
+          ...deck,
+          cards: [
+            ...(deck.cards || []),
+            card
+          ]
+        }
+      : deck
+  );
+
+  return updateCoursePg(courseId, userId, {
+    flashcardDecks: updatedDecks
+  });
+}
+
+async function deleteFlashcardPg(
+  courseId,
+  userId,
+  deckId,
+  cardId
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const decks = course.flashcardDecks || [];
+  const deck = decks.find((item) => item.id === deckId);
+
+  if (!deck) return null;
+
+  const cards = deck.cards || [];
+  const cardExists = cards.some((card) => card.id === cardId);
+
+  if (!cardExists) return null;
+
+  const updatedDecks = decks.map((item) =>
+    item.id === deckId
+      ? {
+          ...item,
+          cards: cards.filter((card) => card.id !== cardId)
+        }
+      : item
+  );
+
+  return updateCoursePg(courseId, userId, {
+    flashcardDecks: updatedDecks
+  });
+}
+async function deleteCoursePg(id, userId) {
+  const course = await findCoursePg(id, userId);
+  if (!course) return null;
+
+  await pool.query(
+    `DELETE FROM courses
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+
+  return course.resources || [];
+}
 async function getWalletPg(userId) {
   const user = await findUserByIdPg(userId);
   if (!user) return null;
@@ -907,6 +1195,58 @@ async function redeemPackagePg(userId, packageId) {
   const updated = await updateUserPg(userId, { sp_balance: user.sp_balance + pkg.sp });
   return { balance: updated.sp_balance, gained: pkg.sp, package: pkg };
 }
+async function insertResourcePg(
+  userId,
+  courseId,
+  { filename, originalName, sizeKb }
+) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  const resource = {
+    id: uid(),
+    filename,
+    originalName,
+    sizeKb: Number(sizeKb) || 0,
+    addedAt: new Date().toISOString()
+  };
+
+  await pool.query(
+    `UPDATE courses
+     SET resources = resources || $1::jsonb
+     WHERE id = $2 AND user_id = $3`,
+    [
+      JSON.stringify([resource]),
+      courseId,
+      userId
+    ]
+  );
+
+  return resource;
+}
+
+async function listResourcesPg(courseId, userId) {
+  const course = await findCoursePg(courseId, userId);
+  if (!course) return null;
+
+  return course.resources || [];
+}
+
+async function findResourcePg(resourceId, userId) {
+  const { rows } = await pool.query(
+    `SELECT jsonb_array_elements(resources) AS resource
+     FROM courses
+     WHERE user_id = $1
+       AND resources @> $2::jsonb
+     LIMIT 1`,
+    [
+      userId,
+      JSON.stringify([{ id: resourceId }])
+    ]
+  );
+
+  return rows[0]?.resource || null;
+}
 module.exports = {
   uid, loadDB, saveDB, ensureAdmin, findUserByIdPg,
   findUserByIdentifierPg, insertUserPg, updateUserPg,
@@ -923,5 +1263,16 @@ module.exports = {
 purchaseItemPg, equipItemPg, redeemPackagePg,  listCoursesPg,
   findCoursePg,
   insertCoursePg,
-  updateCoursePg,
+  updateCoursePg,  deleteCoursePg,   addGradingCategoryPg,
+  updateGradingCategoryPg,
+  deleteGradingCategoryPg,
+  addGradePg,
+  deleteGradePg,   recordAttendancePg,
+  undoLastAttendancePg,
+  resetAttendancePg,  addFlashcardDeckPg,
+  deleteFlashcardDeckPg,
+  addFlashcardPg,
+  deleteFlashcardPg,   insertResourcePg,
+  listResourcesPg,
+  findResourcePg,
 };

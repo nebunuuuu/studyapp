@@ -1126,24 +1126,62 @@ document.getElementById("course-detail-period").addEventListener("change", async
 
 async function renderCourseResources(courseId) {
   const box = document.getElementById("course-detail-resources");
-  const resources = await api("GET", `/courses/${courseId}/resources`);
+  const resources = await api(
+    "GET",
+    `/courses/${courseId}/resources`
+  );
+
   if (resources.length === 0) {
-    box.innerHTML = `<div class="empty-state">${t("no_pdf_yet")}</div>`;
+    box.innerHTML = `
+      <div class="empty-state">
+        ${t("no_pdf_yet")}
+      </div>
+    `;
     return;
   }
+
   box.innerHTML = resources
-    .map(
-      (r) => `<div class="list-item" data-download="${r.id}">
-        <div class="li-main">
-          <span class="li-title">📄 ${r.original_name}</span>
-          <span class="li-sub">${r.size_kb} KB · ${fmtDate(r.added_at.slice(0, 10))}</span>
+    .map((r) => {
+      const resourceName =
+        r.originalName ||
+        r.original_name ||
+        r.originalname ||
+        "Document PDF";
+
+      const sizeKb =
+        r.sizeKb ??
+        r.size_kb ??
+        0;
+
+      const addedAt =
+        r.addedAt ||
+        r.added_at ||
+        r.addedat ||
+        null;
+
+      const dateText = addedAt
+        ? fmtDate(addedAt.slice(0, 10))
+        : "";
+
+      return `
+        <div class="list-item" data-download="${r.id}">
+          <div class="li-main">
+            <span class="li-title">📄 ${resourceName}</span>
+            <span class="li-sub">
+              ${sizeKb} KB${dateText ? ` · ${dateText}` : ""}
+            </span>
+          </div>
         </div>
-      </div>`
-    )
+      `;
+    })
     .join("");
+
   box.querySelectorAll("[data-download]").forEach((el) => {
     el.addEventListener("click", () => {
-      window.open(`${API}/resources/${el.dataset.download}/download?token=${token}`, "_blank");
+      window.open(
+        `${API}/resources/${el.dataset.download}/download?token=${token}`,
+        "_blank"
+      );
     });
   });
 }

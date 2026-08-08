@@ -114,72 +114,264 @@ router.post("/shop/equip", async (req, res) => {
 });
 
 /* ===================== COURSES ===================== */
-router.get("/courses", (req, res) => res.json(db.listCourses(req.userId)));
 
-router.post("/courses", (req, res) => {
-  const { name, professor, color, period } = req.body;
-  if (!name) return res.status(400).json({ error: "Nume materie necesar." });
-  res.status(201).json(db.insertCourse(req.userId, { name, professor, color, period }));
+router.get("/courses", async (req, res) => {
+  try {
+    const courses = await db.listCoursesPg(req.userId);
+    res.json(courses);
+  } catch (err) {
+    console.error("GET /courses error:", err);
+    res.status(500).json({ error: "Eroare la încărcarea materiilor." });
+  }
 });
 
-router.patch("/courses/:id", (req, res) => {
-  const course = db.findCourse(req.params.id, req.userId);
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  const { name, professor, color, period } = req.body;
-  const patch = {};
-  if (name !== undefined) patch.name = name;
-  if (professor !== undefined) patch.professor = professor;
-  if (color !== undefined) patch.color = color;
-  if (period !== undefined) patch.period = period;
-  res.json(db.updateCourse(req.params.id, req.userId, patch));
+router.post("/courses", async (req, res) => {
+  try {
+    const { name, professor, color, period } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        error: "Nume materie necesar."
+      });
+    }
+
+    const course = await db.insertCoursePg(req.userId, {
+      name,
+      professor,
+      color,
+      period
+    });
+
+    res.status(201).json(course);
+  } catch (err) {
+    console.error("POST /courses error:", err);
+    res.status(500).json({ error: "Eroare la crearea materiei." });
+  }
 });
 
-router.delete("/courses/:id", (req, res) => {
-  const course = db.findCourse(req.params.id, req.userId);
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  const removedResources = db.deleteCourse(req.params.id, req.userId);
-  removedResources.forEach((r) => {
-    const filePath = path.join(uploadDir, r.filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  });
-  res.json({ ok: true });
+router.patch("/courses/:id", async (req, res) => {
+  try {
+    const course = await db.findCoursePg(
+      req.params.id,
+      req.userId
+    );
+
+    if (!course) {
+      return res.status(404).json({
+        error: "Materie inexistentă."
+      });
+    }
+
+    const { name, professor, color, period } = req.body;
+    const patch = {};
+
+    if (name !== undefined) patch.name = name;
+    if (professor !== undefined) patch.professor = professor;
+    if (color !== undefined) patch.color = color;
+    if (period !== undefined) patch.period = period;
+
+    const updatedCourse = await db.updateCoursePg(
+      req.params.id,
+      req.userId,
+      patch
+    );
+
+    res.json(updatedCourse);
+  } catch (err) {
+    console.error("PATCH /courses/:id error:", err);
+    res.status(500).json({
+      error: "Eroare la actualizarea materiei."
+    });
+  }
 });
 
+router.delete("/courses/:id", async (req, res) => {
+  try {
+    const removedResources = await db.deleteCoursePg(
+      req.params.id,
+      req.userId
+    );
+
+    if (!removedResources) {
+      return res.status(404).json({
+        error: "Materie inexistentă."
+      });
+    }
+
+    removedResources.forEach((resource) => {
+      const filePath = path.join(uploadDir, resource.filename);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /courses/:id error:", err);
+    res.status(500).json({
+      error: "Eroare la ștergerea materiei."
+    });
+  }
+});
 /* ===================== GRADING (note ponderate) ===================== */
-router.post("/courses/:courseId/grading-categories", (req, res) => {
-  const { name, weight } = req.body;
-  if (!name || weight === undefined) return res.status(400).json({ error: "Nume și pondere necesare." });
-  const course = db.addGradingCategory(req.params.courseId, req.userId, { name, weight });
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  res.status(201).json(course);
-});
 
-router.patch("/courses/:courseId/grading-categories/:categoryId", (req, res) => {
-  const course = db.updateGradingCategory(req.params.courseId, req.userId, req.params.categoryId, req.body);
-  if (!course) return res.status(404).json({ error: "Categorie sau materie inexistentă." });
-  res.json(course);
-});
+router.post(
+  "/courses/:courseId/grading-categories",
+  async (req, res) => {
+    try {
+      const { name, weight } = req.body;
 
-router.delete("/courses/:courseId/grading-categories/:categoryId", (req, res) => {
-  const course = db.deleteGradingCategory(req.params.courseId, req.userId, req.params.categoryId);
-  if (!course) return res.status(404).json({ error: "Categorie sau materie inexistentă." });
-  res.json(course);
-});
+      if (!name || weight === undefined) {
+        return res.status(400).json({
+          error: "Nume și pondere necesare."
+        });
+      }
 
-router.post("/courses/:courseId/grades", (req, res) => {
-  const { categoryId, label, value, maxValue } = req.body;
-  if (!categoryId || value === undefined) return res.status(400).json({ error: "Categorie și notă necesare." });
-  const course = db.addGrade(req.params.courseId, req.userId, { categoryId, label, value, maxValue });
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  res.status(201).json(course);
-});
+      const course = await db.addGradingCategoryPg(
+        req.params.courseId,
+        req.userId,
+        { name, weight }
+      );
 
-router.delete("/courses/:courseId/grades/:gradeId", (req, res) => {
-  const course = db.deleteGrade(req.params.courseId, req.userId, req.params.gradeId);
-  if (!course) return res.status(404).json({ error: "Notă sau materie inexistentă." });
-  res.json(course);
-});
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
 
+      res.status(201).json(course);
+    } catch (err) {
+      console.error("POST grading category error:", err);
+      res.status(500).json({
+        error: "Eroare la adăugarea categoriei."
+      });
+    }
+  }
+);
+
+router.patch(
+  "/courses/:courseId/grading-categories/:categoryId",
+  async (req, res) => {
+    try {
+      const course = await db.updateGradingCategoryPg(
+        req.params.courseId,
+        req.userId,
+        req.params.categoryId,
+        req.body
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Categorie sau materie inexistentă."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("PATCH grading category error:", err);
+      res.status(500).json({
+        error: "Eroare la actualizarea categoriei."
+      });
+    }
+  }
+);
+
+router.delete(
+  "/courses/:courseId/grading-categories/:categoryId",
+  async (req, res) => {
+    try {
+      const course = await db.deleteGradingCategoryPg(
+        req.params.courseId,
+        req.userId,
+        req.params.categoryId
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Categorie sau materie inexistentă."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("DELETE grading category error:", err);
+      res.status(500).json({
+        error: "Eroare la ștergerea categoriei."
+      });
+    }
+  }
+);
+
+router.post(
+  "/courses/:courseId/grades",
+  async (req, res) => {
+    try {
+      const {
+        categoryId,
+        label,
+        value,
+        maxValue
+      } = req.body;
+
+      if (!categoryId || value === undefined) {
+        return res.status(400).json({
+          error: "Categorie și notă necesare."
+        });
+      }
+
+      const course = await db.addGradePg(
+        req.params.courseId,
+        req.userId,
+        {
+          categoryId,
+          label,
+          value,
+          maxValue
+        }
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie sau categorie inexistentă."
+        });
+      }
+
+      res.status(201).json(course);
+    } catch (err) {
+      console.error("POST grade error:", err);
+      res.status(500).json({
+        error: "Eroare la adăugarea notei."
+      });
+    }
+  }
+);
+
+router.delete(
+  "/courses/:courseId/grades/:gradeId",
+  async (req, res) => {
+    try {
+      const course = await db.deleteGradePg(
+        req.params.courseId,
+        req.userId,
+        req.params.gradeId
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Notă sau materie inexistentă."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("DELETE grade error:", err);
+      res.status(500).json({
+        error: "Eroare la ștergerea notei."
+      });
+    }
+  }
+);
 /* ===================== NOTES (notebook) ===================== */
 router.get("/notes", (req, res) => res.json(db.listNotes(req.userId)));
 
@@ -284,72 +476,266 @@ router.delete("/tasks/:id", (req, res) => {
   res.json({ ok: true });
 });
 /* ===================== ATTENDANCE (absence tracker) ===================== */
+
 const ATTENDANCE_ALERT_THRESHOLD = 75;
 
-router.post("/courses/:courseId/attendance/:type", (req, res) => {
-  const { type } = req.params;
-  if (!["present", "absent"].includes(type)) return res.status(400).json({ error: "Tip invalid." });
-  const course = db.recordAttendance(req.params.courseId, req.userId, type);
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  res.json(course);
-});
+router.post(
+  "/courses/:courseId/attendance/:type",
+  async (req, res) => {
+    try {
+      const { type } = req.params;
 
-router.post("/courses/:courseId/attendance/:type/undo", (req, res) => {
-  const { type } = req.params;
-  if (!["present", "absent"].includes(type)) return res.status(400).json({ error: "Tip invalid." });
-  const course = db.undoLastAttendance(req.params.courseId, req.userId, type);
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  res.json(course);
-});
+      if (!["present", "absent"].includes(type)) {
+        return res.status(400).json({
+          error: "Tip invalid."
+        });
+      }
 
-router.post("/courses/:courseId/attendance/reset", (req, res) => {
-  const course = db.resetAttendance(req.params.courseId, req.userId);
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  res.json(course);
-});
+      const course = await db.recordAttendancePg(
+        req.params.courseId,
+        req.userId,
+        type
+      );
 
-router.get("/attendance/overview", (req, res) => {
-  const courses = db.listCourses(req.userId);
-  const overview = courses.map((c) => {
-    const att = c.attendance || { present: 0, absent: 0 };
-    const total = att.present + att.absent;
-    const percent = total > 0 ? (att.present / total) * 100 : null;
-    return {
-      id: c.id, name: c.name, color: c.color,
-      present: att.present, absent: att.absent, total,
-      percent, belowThreshold: percent !== null && percent < ATTENDANCE_ALERT_THRESHOLD
-    };
-  });
-  res.json({ threshold: ATTENDANCE_ALERT_THRESHOLD, courses: overview });
-});
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
 
+      res.json(course);
+    } catch (err) {
+      console.error("POST attendance error:", err);
+      res.status(500).json({
+        error: "Eroare la înregistrarea prezenței."
+      });
+    }
+  }
+);
+
+router.post(
+  "/courses/:courseId/attendance/:type/undo",
+  async (req, res) => {
+    try {
+      const { type } = req.params;
+
+      if (!["present", "absent"].includes(type)) {
+        return res.status(400).json({
+          error: "Tip invalid."
+        });
+      }
+
+      const course = await db.undoLastAttendancePg(
+        req.params.courseId,
+        req.userId,
+        type
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("POST attendance undo error:", err);
+      res.status(500).json({
+        error: "Eroare la anularea prezenței."
+      });
+    }
+  }
+);
+
+router.post(
+  "/courses/:courseId/attendance/reset",
+  async (req, res) => {
+    try {
+      const course = await db.resetAttendancePg(
+        req.params.courseId,
+        req.userId
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("POST attendance reset error:", err);
+      res.status(500).json({
+        error: "Eroare la resetarea prezenței."
+      });
+    }
+  }
+);
+
+router.get(
+  "/attendance/overview",
+  async (req, res) => {
+    try {
+      const courses = await db.listCoursesPg(req.userId);
+
+      const overview = courses.map((course) => {
+        const attendance = course.attendance || {
+          present: 0,
+          absent: 0
+        };
+
+        const total =
+          attendance.present + attendance.absent;
+
+        const percent =
+          total > 0
+            ? (attendance.present / total) * 100
+            : null;
+
+        return {
+          id: course.id,
+          name: course.name,
+          color: course.color,
+          present: attendance.present,
+          absent: attendance.absent,
+          total,
+          percent,
+          belowThreshold:
+            percent !== null &&
+            percent < ATTENDANCE_ALERT_THRESHOLD
+        };
+      });
+
+      res.json({
+        threshold: ATTENDANCE_ALERT_THRESHOLD,
+        courses: overview
+      });
+    } catch (err) {
+      console.error("GET attendance overview error:", err);
+      res.status(500).json({
+        error: "Eroare la încărcarea prezențelor."
+      });
+    }
+  }
+);
 /* ===================== FLASHCARDS ===================== */
-router.post("/courses/:courseId/flashcard-decks", (req, res) => {
-  const { name, cards } = req.body;
-  const course = db.addFlashcardDeck(req.params.courseId, req.userId, { name, cards });
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  res.status(201).json(course);
-});
+router.post(
+  "/courses/:courseId/flashcard-decks",
+  async (req, res) => {
+    try {
+      const { name, cards } = req.body;
 
-router.delete("/courses/:courseId/flashcard-decks/:deckId", (req, res) => {
-  const course = db.deleteFlashcardDeck(req.params.courseId, req.userId, req.params.deckId);
-  if (!course) return res.status(404).json({ error: "Materie sau deck inexistent." });
-  res.json(course);
-});
+      const course = await db.addFlashcardDeckPg(
+        req.params.courseId,
+        req.userId,
+        { name, cards }
+      );
 
-router.post("/courses/:courseId/flashcard-decks/:deckId/cards", (req, res) => {
-  const { front, back } = req.body;
-  if (!front || !back) return res.status(400).json({ error: "Față și verso necesare." });
-  const course = db.addFlashcard(req.params.courseId, req.userId, req.params.deckId, { front, back });
-  if (!course) return res.status(404).json({ error: "Materie sau deck inexistent." });
-  res.status(201).json(course);
-});
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
 
-router.delete("/courses/:courseId/flashcard-decks/:deckId/cards/:cardId", (req, res) => {
-  const course = db.deleteFlashcard(req.params.courseId, req.userId, req.params.deckId, req.params.cardId);
-  if (!course) return res.status(404).json({ error: "Card inexistent." });
-  res.json(course);
-});
+      res.status(201).json(course);
+    } catch (err) {
+      console.error("POST flashcard deck error:", err);
+      res.status(500).json({
+        error: "Eroare la adăugarea deck-ului."
+      });
+    }
+  }
+);
+
+
+router.delete(
+  "/courses/:courseId/flashcard-decks/:deckId",
+  async (req, res) => {
+    try {
+      const course = await db.deleteFlashcardDeckPg(
+        req.params.courseId,
+        req.userId,
+        req.params.deckId
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie sau deck inexistent."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("DELETE flashcard deck error:", err);
+      res.status(500).json({
+        error: "Eroare la ștergerea deck-ului."
+      });
+    }
+  }
+);
+
+router.post(
+  "/courses/:courseId/flashcard-decks/:deckId/cards",
+  async (req, res) => {
+    try {
+      const { front, back } = req.body;
+
+      if (!front || !back) {
+        return res.status(400).json({
+          error: "Față și verso necesare."
+        });
+      }
+
+      const course = await db.addFlashcardPg(
+        req.params.courseId,
+        req.userId,
+        req.params.deckId,
+        { front, back }
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie sau deck inexistent."
+        });
+      }
+
+      res.status(201).json(course);
+    } catch (err) {
+      console.error("POST flashcard error:", err);
+      res.status(500).json({
+        error: "Eroare la adăugarea cardului."
+      });
+    }
+  }
+);
+
+
+router.delete(
+  "/courses/:courseId/flashcard-decks/:deckId/cards/:cardId",
+  async (req, res) => {
+    try {
+      const course = await db.deleteFlashcardPg(
+        req.params.courseId,
+        req.userId,
+        req.params.deckId,
+        req.params.cardId
+      );
+
+      if (!course) {
+        return res.status(404).json({
+          error: "Card inexistent."
+        });
+      }
+
+      res.json(course);
+    } catch (err) {
+      console.error("DELETE flashcard error:", err);
+      res.status(500).json({
+        error: "Eroare la ștergerea cardului."
+      });
+    }
+  }
+);
 
 /* Generare AI de flashcards — necesită cheie OpenAI salvată în Setări.
    Fără cheie, returnăm o eroare clară în loc să eșuăm silențios. */
@@ -390,7 +776,11 @@ router.post("/courses/:courseId/flashcard-decks/generate-ai", async (req, res) =
     } catch {
       return res.status(502).json({ error: "Răspunsul AI nu a putut fi interpretat. Încearcă din nou." });
     }
-    const course = db.addFlashcardDeck(req.params.courseId, req.userId, { name: topic, cards });
+    const course = await db.addFlashcardDeckPg(
+  req.params.courseId,
+  req.userId,
+  { name: topic, cards }
+);
     if (!course) return res.status(404).json({ error: "Materie inexistentă." });
     res.status(201).json(course);
   } catch (err) {
@@ -399,28 +789,101 @@ router.post("/courses/:courseId/flashcard-decks/generate-ai", async (req, res) =
 });
 
 /* ===================== RESOURCES (PDF upload real) ===================== */
-router.post("/courses/:courseId/resources", upload.single("file"), (req, res) => {
-  const course = db.findCourse(req.params.courseId, req.userId);
-  if (!course) return res.status(404).json({ error: "Materie inexistentă." });
-  if (!req.file) return res.status(400).json({ error: "Niciun fișier primit." });
 
-  const record = db.insertResource(req.userId, req.params.courseId, {
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-    sizeKb: Math.round(req.file.size / 1024)
-  });
-  res.status(201).json(record);
-});
+router.post(
+  "/courses/:courseId/resources",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const course = await db.findCoursePg(
+        req.params.courseId,
+        req.userId
+      );
 
-router.get("/courses/:courseId/resources", (req, res) => {
-  res.json(db.listResources(req.params.courseId, req.userId));
-});
+      if (!course) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
 
-router.get("/resources/:id/download", (req, res) => {
-  const resource = db.findResource(req.params.id, req.userId);
-  if (!resource) return res.status(404).json({ error: "Resursă inexistentă." });
-  res.download(path.join(uploadDir, resource.filename), resource.original_name);
-});
+      if (!req.file) {
+        return res.status(400).json({
+          error: "Niciun fișier primit."
+        });
+      }
+
+      const resource = await db.insertResourcePg(
+        req.userId,
+        req.params.courseId,
+        {
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          sizeKb: Math.round(req.file.size / 1024)
+        }
+      );
+
+      res.status(201).json(resource);
+    } catch (err) {
+      console.error("POST resource error:", err);
+      res.status(500).json({
+        error: "Eroare la încărcarea fișierului."
+      });
+    }
+  }
+);
+
+router.get(
+  "/courses/:courseId/resources",
+  async (req, res) => {
+    try {
+      const resources = await db.listResourcesPg(
+        req.params.courseId,
+        req.userId
+      );
+
+      if (resources === null) {
+        return res.status(404).json({
+          error: "Materie inexistentă."
+        });
+      }
+
+      res.json(resources);
+    } catch (err) {
+      console.error("GET resources error:", err);
+      res.status(500).json({
+        error: "Eroare la încărcarea resurselor."
+      });
+    }
+  }
+);
+
+router.get(
+  "/resources/:id/download",
+  async (req, res) => {
+    try {
+      const resource = await db.findResourcePg(
+        req.params.id,
+        req.userId
+      );
+
+      if (!resource) {
+        return res.status(404).json({
+          error: "Resursă inexistentă."
+        });
+      }
+
+      res.download(
+        path.join(uploadDir, resource.filename),
+        resource.originalName
+      );
+    } catch (err) {
+      console.error("GET resource download error:", err);
+      res.status(500).json({
+        error: "Eroare la descărcarea resursei."
+      });
+    }
+  }
+);
 /* ===================== SCHEDULE (orar) ===================== */
 router.get("/schedule", (req, res) => {
   res.json(db.listScheduleEntries(req.userId));
@@ -463,8 +926,8 @@ function weightedAverage(course) {
   return weightedSum / weightUsed;
 }
 
-router.get("/summary/periods", (req, res) => {
-  const courses = db.listCourses(req.userId);
+router.get("/summary/periods", async (req, res) => {
+ const courses = await db.listCoursesPg(req.userId);
   const tasks = db.listTasks(req.userId);
 
   const periodsMap = {};
