@@ -2506,3 +2506,137 @@ textarea:focus {
 .schedule-day-card.today-highlight .schedule-day-head {
   background: linear-gradient(135deg, rgba(91,91,240,0.18), rgba(236,72,153,0.08));
 }
+/* Dynamic schedule view */
+.schedule-dynamic-shell {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.schedule-dynamic-shell .schedule-day-card {
+  min-height: 0;
+  border-radius: 24px;
+  border: 1px solid rgba(91, 91, 240, 0.28);
+  box-shadow:
+    0 18px 45px rgba(30, 30, 80, 0.12),
+    0 3px 10px rgba(30, 30, 80, 0.06);
+  overflow: hidden;
+  transform: none;
+}
+
+.schedule-dynamic-shell .schedule-day-head {
+  padding: 24px 26px 20px;
+  background:
+    radial-gradient(circle at top right, rgba(236, 72, 153, 0.22), transparent 38%),
+    linear-gradient(135deg, rgba(91, 91, 240, 0.20), rgba(139, 127, 245, 0.08));
+  border-bottom: 1px solid rgba(91, 91, 240, 0.16);
+}
+
+.schedule-dynamic-shell .schedule-day-name {
+  font-size: 22px;
+  letter-spacing: -0.3px;
+  margin-bottom: 7px;
+}
+
+.schedule-dynamic-shell .schedule-day-date {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.schedule-dynamic-shell .schedule-entry-list {
+  padding: 20px;
+  gap: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(91, 91, 240, 0.025),
+    transparent
+  );
+}
+
+.schedule-dynamic-shell .schedule-entry {
+  position: relative;
+  min-height: 76px;
+  padding: 16px 18px 15px 22px;
+  border-radius: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.10);
+}
+
+.schedule-dynamic-shell .schedule-entry::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 0 6px 6px 0;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.schedule-dynamic-shell .schedule-entry-title {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.schedule-dynamic-shell .schedule-entry-time {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.schedule-dynamic-shell .schedule-entry-meta {
+  font-size: 12px;
+  margin-top: 7px;
+}
+
+.schedule-dynamic-shell .schedule-empty-day {
+  padding: 28px 8px;
+  text-align: center;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .schedule-dynamic-shell {
+    max-width: none;
+  }
+
+  .schedule-dynamic-shell .schedule-day-head {
+    padding: 20px 18px 17px;
+  }
+
+  .schedule-dynamic-shell .schedule-day-name {
+    font-size: 19px;
+  }
+
+  .schedule-dynamic-shell .schedule-entry-list {
+    padding: 14px;
+  }
+
+  .schedule-dynamic-shell .schedule-entry {
+    padding: 14px 15px 14px 19px;
+    border-radius: 15px;
+  }
+}
+
+.schedule-grid.schedule-grid-dynamic {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  padding-bottom: 0;
+}
+.schedule-grid.schedule-grid-dynamic {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.schedule-grid-dynamic .schedule-dynamic-shell {
+  display: block;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.schedule-grid-dynamic .schedule-day-card {
+  width: 100%;
+  min-width: 0;
+}

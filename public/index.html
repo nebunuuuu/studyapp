@@ -288,12 +288,13 @@
           <div class="page-header">
             <h2 class="page-title" data-i18n="page_schedule"></h2>
             <div class="header-actions">
-              <button class="btn btn-secondary schedule-view-btn active" data-schedule-view="classic"
-                data-i18n="schedule_view_classic"></button>
-              <button class="btn btn-secondary schedule-view-btn" data-schedule-view="carousel"
-                data-i18n="schedule_view_carousel"></button>
-              <button class="btn btn-secondary schedule-view-btn" data-schedule-view="dynamic"
-                data-i18n="schedule_view_dynamic"></button>
+              <button class="btn btn-secondary schedule-view-btn active"
+  data-schedule-view="classic"
+  data-i18n="schedule_view_classic"></button>
+
+<button class="btn btn-secondary schedule-view-btn"
+  data-schedule-view="dynamic"
+  data-i18n="schedule_view_dynamic"></button>
               <button id="export-schedule-btn" class="btn btn-secondary" data-i18n="schedule_export"></button>
               <label class="btn btn-secondary" for="import-schedule-input" data-i18n="schedule_import"></label>
               <input id="import-schedule-input" type="file" accept="application/json" hidden>
@@ -527,12 +528,14 @@
         <input type="time" id="schedule-end-time">
       </div>
       <input type="text" id="schedule-room" data-i18n-ph="schedule_room_ph">
-      <select id="schedule-type">
-        <option value="curs" data-i18n="schedule_type_curs"></option>
-        <option value="seminar" data-i18n="schedule_type_seminar"></option>
-        <option value="lab" data-i18n="schedule_type_lab"></option>
-        <option value="ora" data-i18n="schedule_type_ora"></option>
-      </select>
+    <div id="schedule-type-group">
+  <select id="schedule-type">
+    <option value="curs" data-i18n="schedule_type_curs"></option>
+    <option value="seminar" data-i18n="schedule_type_seminar"></option>
+    <option value="lab" data-i18n="schedule_type_lab"></option>
+    <option value="ora" data-i18n="schedule_type_ora"></option>
+  </select>
+</div>
       <select id="schedule-parity">
         <option value="all" data-i18n="schedule_parity_all"></option>
         <option value="odd" data-i18n="schedule_parity_odd"></option>

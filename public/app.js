@@ -669,6 +669,8 @@ const DAY_KEYS = {
 
 let activeScheduleFilter = "all";
 let activeScheduleEntryId = null;
+let currentScheduleDay = null;
+let dynamicScheduleDay = null;
 
 function dayLabel(day) {
   return t(DAY_KEYS[day] || "schedule_day_mon");
@@ -729,97 +731,201 @@ function buildSingleDayCard(day, highlighted = false) {
     </div>
   `;
 }
+function isSchoolSchedule() {
+  if (!state.user) return false;
+
+  const educationLevel =
+    state.user.education_level ||
+    state.user.educationLevel ||
+    state.user.educationlevel;
+
+  return educationLevel === "liceu";
+}
 function renderSchedule() {
-  
   const grid = document.getElementById("schedule-grid");
   const carouselNav = document.getElementById("schedule-carousel-nav");
   const currentDayLabel = document.getElementById("schedule-current-day-label");
-  const now = new Date();
-  const today = now.getDay();
 
-  const baseEntries = [...(state.scheduleEntries || [])]
-    .filter((e) => activeScheduleFilter === "all" ? true : e.type === activeScheduleFilter)
+  if (!grid) return;
+
+  const today = new Date().getDay();
+
+  const isClassic = activeScheduleView === "classic";
+  const isCarousel = activeScheduleView === "carousel";
+  const isDynamic = activeScheduleView === "dynamic";
+
+  grid.classList.toggle("schedule-grid-dynamic", isDynamic);
+
+  const entries = [...(state.scheduleEntries || [])]
+    .filter((entry) => {
+      return activeScheduleFilter === "all" ||
+        entry.type === activeScheduleFilter;
+    })
     .sort((a, b) => {
-      if (a.day !== b.day) return DAYS_ORDER.indexOf(a.day) - DAYS_ORDER.indexOf(b.day);
+      if (Number(a.day) !== Number(b.day)) {
+        return DAYS_ORDER.indexOf(Number(a.day)) -
+          DAYS_ORDER.indexOf(Number(b.day));
+      }
+
       return (a.startTime || "").localeCompare(b.startTime || "");
     });
 
-  function buildDayCard(day) {
-    const dayEntries = baseEntries.filter((e) => Number(e.day) === Number(day));
+  function buildDayEntries(day) {
+    return entries
+      .filter((entry) => Number(entry.day) === Number(day))
+      .map((entry) => {
+        const course = state.courses.find(
+          (courseItem) => courseItem.id === entry.course_id
+        );
+
+        const backgroundColor =
+          entry.color ||
+          course?.color ||
+          "#5b5bf0";
+
+        return `
+          <div
+            class="schedule-entry"
+            data-entry="${entry.id}"
+            style="background:${backgroundColor}"
+          >
+            <div class="schedule-entry-title">
+              ${entry.title || course?.name || "—"}
+            </div>
+
+            <div class="schedule-entry-time">
+              ${entry.startTime} – ${entry.endTime}
+            </div>
+
+            <div class="schedule-entry-meta">
+              ${entry.room ? `📍 ${entry.room}` : ""}
+              ${
+                entry.parity !== "all"
+                  ? ` · ${
+                      entry.parity === "odd"
+                        ? t("schedule_parity_odd")
+                        : t("schedule_parity_even")
+                    }`
+                  : ""
+              }
+              ${
+                entry.type && !isSchoolSchedule()
+                  ? ` · ${entry.type}`
+                  : ""
+              }
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function buildDayCard(day, highlighted = false) {
     const dayDate = new Date();
-    const diff = (day - today + 7) % 7;
-    dayDate.setDate(dayDate.getDate() + diff);
-    const dateLabel = dayDate.toLocaleDateString(window.currentLang === "en" ? "en-GB" : "ro-RO", {
-      day: "numeric",
-      month: "short"
-    });
-    const fullLabel = formatFullDayLabel(day);
+    const difference = (day - today + 7) % 7;
+
+    dayDate.setDate(dayDate.getDate() + difference);
+
+    const dateLabel = dayDate.toLocaleDateString(
+      window.currentLang === "en" ? "en-GB" : "ro-RO",
+      {
+        weekday: "long",
+        day: "numeric",
+        month: "short"
+      }
+    );
+
+    const dayEntries = buildDayEntries(day);
 
     return `
-      <div class="schedule-day-card ${day === today ? "today-highlight" : ""}" data-day="${day}">
+      <div
+        class="schedule-day-card ${
+          highlighted ? "today-highlight schedule-dynamic-card" : ""
+        }"
+        data-day="${day}"
+      >
         <div class="schedule-day-head">
-          <div class="schedule-day-name">${dayLabel(day)}</div>
-          <div class="schedule-day-date">${dateLabel}${day === today ? ` • ${t("schedule_weekday_today")}` : ""}</div>
+          <div class="schedule-day-name">
+            ${dayLabel(day)}
+          </div>
+
+          <div class="schedule-day-date">
+            ${dateLabel}
+            ${
+              day === today
+                ? ` · ${t("schedule_weekday_today")}`
+                : ""
+            }
+          </div>
         </div>
+
         <div class="schedule-entry-list">
           ${
-            dayEntries.length === 0
-              ? `<div class="schedule-empty-day">${t("schedule_empty_day")}</div>`
-              : dayEntries.map((e) => {
-                  const course = state.courses.find((c) => c.id === e.course_id);
-                  const bg = e.color || course?.color || "#5b5bf0";
-                  return `
-                    <div class="schedule-entry" data-entry="${e.id}" style="background:${bg}">
-                      <div class="schedule-entry-title">${e.title || course?.name || "—"}</div>
-                      <div class="schedule-entry-time">${e.startTime} – ${e.endTime}</div>
-                      <div class="schedule-entry-meta">
-                        ${e.room ? `📍 ${e.room}` : ""}
-                        ${e.parity !== "all" ? `· ${e.parity === "odd" ? t("schedule_parity_odd") : t("schedule_parity_even")}` : ""}
-                        ${e.type ? `· ${e.type}` : ""}
-                      </div>
-                    </div>`;
-                }).join("")
+            dayEntries
+              ? dayEntries
+              : `<div class="schedule-empty-day">
+                  ${t("schedule_empty_day")}
+                </div>`
           }
         </div>
       </div>
     `;
   }
 
-    if (activeScheduleView === "classic") {
-    carouselNav.classList.add("hidden");
-    grid.innerHTML = DAYS_ORDER.map((day) => buildSingleDayCard(day, day === today)).join("");
+  if (carouselNav) {
+    carouselNav.classList.toggle("hidden", isClassic);
   }
 
-  if (activeScheduleView === "carousel") {
-    carouselNav.classList.remove("hidden");
+  if (isClassic) {
+    grid.innerHTML = DAYS_ORDER
+      .map((day) => buildDayCard(day, day === today))
+      .join("");
+  }
+
+  if (isCarousel) {
     currentScheduleDay = currentScheduleDay ?? today;
-    currentDayLabel.textContent = formatFullDayLabel(currentScheduleDay);
-    grid.innerHTML = buildSingleDayCard(currentScheduleDay, currentScheduleDay === today);
-  }
-    if (activeScheduleView === "dynamic") {
-    carouselNav.classList.remove("hidden");
-    dynamicScheduleDay = dynamicScheduleDay ?? today;
-    currentDayLabel.textContent = `${formatFullDayLabel(dynamicScheduleDay)} · ${todayDateLabel()}`;
 
-    const dayEntries = baseEntries.filter((e) => Number(e.day) === Number(dynamicScheduleDay));
-    const dayCard = buildDayCard(dynamicScheduleDay)
-      .replace('data-day="' + dynamicScheduleDay + '"', 'data-day="' + dynamicScheduleDay + '" class="schedule-day-card today-highlight schedule-dynamic-card"');
+    if (currentDayLabel) {
+      currentDayLabel.textContent =
+        formatFullDayLabel(currentScheduleDay);
+    }
+
+    grid.innerHTML = buildDayCard(
+      currentScheduleDay,
+      currentScheduleDay === today
+    );
+  }
+
+  if (isDynamic) {
+    dynamicScheduleDay = dynamicScheduleDay ?? today;
+
+    if (currentDayLabel) {
+      currentDayLabel.textContent =
+        `${formatFullDayLabel(dynamicScheduleDay)} · ${todayDateLabel()}`;
+    }
+
+    const dynamicCard = buildDayCard(
+      dynamicScheduleDay,
+      dynamicScheduleDay === today
+    );
 
     grid.innerHTML = `
       <div class="schedule-dynamic-shell">
-        ${dayCard}
+        ${dynamicCard}
       </div>
     `;
   }
 
-  grid.querySelectorAll("[data-entry]").forEach((el) => {
-    el.addEventListener("click", () => openScheduleModal(el.dataset.entry));
+  grid.querySelectorAll("[data-entry]").forEach((entryElement) => {
+    entryElement.addEventListener("click", () => {
+      openScheduleModal(entryElement.dataset.entry);
+    });
   });
 
-  grid.querySelectorAll("[data-day]").forEach((el) => {
-    el.addEventListener("click", () => {
-      if (activeScheduleView === "carousel") {
-        currentScheduleDay = Number(el.dataset.day);
+  grid.querySelectorAll("[data-day]").forEach((dayElement) => {
+    dayElement.addEventListener("click", () => {
+      if (isCarousel) {
+        currentScheduleDay = Number(dayElement.dataset.day);
         renderSchedule();
       }
     });
@@ -832,7 +938,20 @@ function todayDateLabel() {
     month: "short"
   });
 }
+function applyScheduleTypeVisibility() {
+  const typeGroup = document.getElementById("schedule-type-group");
 
+  if (!typeGroup || !state.user) return;
+
+  const educationLevel =
+    state.user.education_level ||
+    state.user.educationLevel ||
+    state.user.educationlevel;
+
+  const isSchool = educationLevel === "liceu";
+
+  typeGroup.classList.toggle("hidden", isSchool);
+}
 function openScheduleModal(entryId = null) {
   activeScheduleEntryId = entryId;
   const entry = state.scheduleEntries.find((e) => e.id === entryId) || null;
@@ -862,8 +981,9 @@ function openScheduleModal(entryId = null) {
       document.getElementById("schedule-title").value = course.name || "";
     }
   };
+  applyScheduleTypeVisibility();
+openModal("modal-schedule");
 
-  openModal("modal-schedule");
 }
 
 document.getElementById("new-schedule-entry-btn").addEventListener("click", () => openScheduleModal());
@@ -878,15 +998,24 @@ document.querySelectorAll("[data-schedule-view]").forEach((btn) => {
 });
 
 document.getElementById("schedule-prev-day-btn").addEventListener("click", () => {
-  currentScheduleDay = (currentScheduleDay + 6) % 7;
+  if (activeScheduleView === "dynamic") {
+    dynamicScheduleDay = (dynamicScheduleDay + 6) % 7;
+  } else {
+    currentScheduleDay = (currentScheduleDay + 6) % 7;
+  }
+
   renderSchedule();
 });
 
 document.getElementById("schedule-next-day-btn").addEventListener("click", () => {
-  currentScheduleDay = (currentScheduleDay + 1) % 7;
+  if (activeScheduleView === "dynamic") {
+    dynamicScheduleDay = (dynamicScheduleDay + 1) % 7;
+  } else {
+    currentScheduleDay = (currentScheduleDay + 1) % 7;
+  }
+
   renderSchedule();
 });
-
 document.getElementById("import-schedule-input").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
