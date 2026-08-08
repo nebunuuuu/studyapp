@@ -41,7 +41,26 @@ const SP_PACKAGES = [
   { id: "pack-medium", sp: 300, label: "300 SP" },
   { id: "pack-large", sp: 700, label: "700 SP" }
 ];
-
+const PRO_PLANS = [
+  {
+    id: "pro-day",
+    name: "Pro 1 zi",
+    price: 100,
+    durationDays: 1
+  },
+  {
+    id: "pro-week",
+    name: "Pro 7 zile",
+    price: 600,
+    durationDays: 7
+  },
+  {
+    id: "pro-month",
+    name: "Pro 30 zile",
+    price: 2000,
+    durationDays: 30
+  }
+];
 const DAILY_BONUS_SP = 20;
 const AD_WATCH_SP = 15;
 const AD_WATCH_COOLDOWN_MIN = 30;
@@ -245,7 +264,9 @@ function getShopCatalog() {
 function getSPPackages() {
   return SP_PACKAGES;
 }
-
+function getProPlans() {
+  return PRO_PLANS;
+}
 /* Apelat de api.js când un task e marcat "done" înainte de deadline —
    recompensează o singură dată per task (flag spAwarded). */
 function awardTaskOnTimeIfEligible(taskId, userId) {
@@ -694,10 +715,11 @@ async function updateUserPg(id, patch) {
       owned_items = $12,
       active_theme = $13,
       active_frame = $14,
-      is_pro = $15,
-      last_daily_bonus_date = $16,
-      last_ad_watch_at = $17,
-      openai_api_key = $18
+     is_pro = $15,
+pro_expires_at = $16,
+last_daily_bonus_date = $17,
+last_ad_watch_at = $18,
+openai_api_key = $19
     WHERE id = $1
     RETURNING *;
   `;
@@ -718,9 +740,10 @@ async function updateUserPg(id, patch) {
     updated.active_theme,
     updated.active_frame,
     updated.is_pro,
-    updated.last_daily_bonus_date,
-    updated.last_ad_watch_at,
-    updated.openai_api_key || null
+updated.pro_expires_at || null,
+updated.last_daily_bonus_date,
+updated.last_ad_watch_at,
+updated.openai_api_key || null
   ];
 
   const { rows } = await pool.query(query, values);
@@ -1157,62 +1180,226 @@ async function deleteCoursePg(id, userId) {
 async function getWalletPg(userId) {
   const user = await findUserByIdPg(userId);
   if (!user) return null;
+  const now = new Date();
+  if (
+  user.is_pro === true &&
+  user.pro_expires_at &&
+  new Date(user.pro_expires_at) <= now
+) {
+  await updateUserPg(userId, {
+    is_pro: false
+  });
+
+  user.is_pro = false;
+}
+
+const isProActive =
+  user.is_pro === true &&
+  user.pro_expires_at &&
+  new Date(user.pro_expires_at) > now;
   return {
     balance: user.sp_balance,
     ownedItems: user.owned_items,
     activeTheme: user.active_theme,
     activeFrame: user.active_frame,
-    isPro: user.is_pro,
+    isPro: Boolean(isProActive),
+    proExpiresAt: user.pro_expires_at,
     lastDailyBonusDate: user.last_daily_bonus_date,
     lastAdWatchAt: user.last_ad_watch_at
   };
 }
+async function addStudyPointsTransactionPg(
+  userId,
+  amount,
+  balanceAfter,
+  type,
+  description,
+  referenceId = null
+) {
+  await pool.query(
+    `INSERT INTO study_points_transactions
+      (user_id, amount, balance_after, type, description, reference_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (user_id, reference_id)
+     WHERE reference_id IS NOT NULL
+     DO NOTHING`,
+    [
+      userId,
+      amount,
+      balanceAfter,
+      type,
+      description,
+      referenceId
+    ]
+  );
+}
+async function listStudyPointsTransactionsPg(userId, limit = 50) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 100);
 
+  const { rows } = await pool.query(
+    `SELECT
+       id,
+       amount,
+       balance_after,
+       type,
+       description,
+       reference_id,
+       created_at
+     FROM study_points_transactions
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [userId, safeLimit]
+  );
+
+  return rows;
+}
 async function claimDailyBonusPg(userId) {
   const user = await findUserByIdPg(userId);
-  if (!user) return { error: "Utilizator inexistent." };
-  const today = new Date().toISOString().slice(0, 10);
-  if (user.last_daily_bonus_date === today) {
-    return { error: "already_claimed", balance: user.sp_balance };
+
+  if (!user) {
+    return {
+      error: "Utilizator inexistent."
+    };
   }
+
+  const now = new Date();
+
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0")
+  ].join("-");
+
+  let lastBonusDate = null;
+
+  if (user.last_daily_bonus_date) {
+    if (typeof user.last_daily_bonus_date === "string") {
+      lastBonusDate = user.last_daily_bonus_date.slice(0, 10);
+    } else {
+      const lastDate = new Date(user.last_daily_bonus_date);
+
+      lastBonusDate = [
+        lastDate.getFullYear(),
+        String(lastDate.getMonth() + 1).padStart(2, "0"),
+        String(lastDate.getDate()).padStart(2, "0")
+      ].join("-");
+    }
+  }
+
+  if (lastBonusDate === today) {
+    return {
+      error: "already_claimed",
+      balance: user.sp_balance
+    };
+  }
+
   const updated = await updateUserPg(userId, {
-    sp_balance: user.sp_balance + 20,
+    sp_balance: Number(user.sp_balance || 0) + 20,
     last_daily_bonus_date: today
   });
-  return { balance: updated.sp_balance, gained: 20 };
-}
+  await addStudyPointsTransactionPg(
+  userId,
+  20,
+  updated.sp_balance,
+  "daily_bonus",
+  "Bonus zilnic",
+  `daily-bonus:${today}`
+);
 
+  return {
+    balance: updated.sp_balance,
+    gained: 20
+  };
+}
 async function claimAdWatchPg(userId) {
   const user = await findUserByIdPg(userId);
-  if (!user) return { error: "Utilizator inexistent." };
-  const now = Date.now();
-  const last = user.last_ad_watch_at ? new Date(user.last_ad_watch_at).getTime() : 0;
-  const cooldownMs = 30 * 60 * 1000;
-  if (now - last < cooldownMs) {
-    return { error: "cooldown", remainingMin: Math.ceil((cooldownMs - (now - last)) / 60000) };
+
+  if (!user) {
+    return { error: "Utilizator inexistent." };
   }
+
+  const now = Date.now();
+  const last = user.last_ad_watch_at
+    ? new Date(user.last_ad_watch_at).getTime()
+    : 0;
+
+  const cooldownMs = 30 * 60 * 1000;
+
+  if (now - last < cooldownMs) {
+    return {
+      error: "cooldown",
+      remainingMin: Math.ceil(
+        (cooldownMs - (now - last)) / 60000
+      )
+    };
+  }
+
   const updated = await updateUserPg(userId, {
-    sp_balance: user.sp_balance + 15,
+    sp_balance: Number(user.sp_balance || 0) + 15,
     last_ad_watch_at: new Date().toISOString()
   });
-  return { balance: updated.sp_balance, gained: 15 };
+
+  await addStudyPointsTransactionPg(
+    userId,
+    15,
+    updated.sp_balance,
+    "ad_watch",
+    "Recompensă vizionare reclamă",
+    null
+  );
+
+  return {
+    balance: updated.sp_balance,
+    gained: 15
+  };
 }
 
 async function purchaseItemPg(userId, itemId) {
   const item = getShopCatalog().find((i) => i.id === itemId);
-  if (!item) return { error: "Item inexistent." };
+
+  if (!item) {
+    return { error: "Item inexistent." };
+  }
+
   const user = await findUserByIdPg(userId);
-  if (!user) return { error: "Utilizator inexistent." };
-  if (user.owned_items.includes(itemId)) return { error: "already_owned" };
-  if (user.sp_balance < item.price) return { error: "insufficient_funds", needed: item.price - user.sp_balance };
+
+  if (!user) {
+    return { error: "Utilizator inexistent." };
+  }
+
+  const balance = Number(user.sp_balance || 0);
+
+  if (user.owned_items.includes(itemId)) {
+    return { error: "already_owned" };
+  }
+
+  if (balance < item.price) {
+    return {
+      error: "insufficient_funds",
+      needed: item.price - balance
+    };
+  }
 
   const updated = await updateUserPg(userId, {
-    sp_balance: user.sp_balance - item.price,
+    sp_balance: balance - item.price,
     owned_items: [...user.owned_items, itemId]
   });
-  return { balance: updated.sp_balance, item };
-}
 
+  await addStudyPointsTransactionPg(
+    userId,
+    -item.price,
+    updated.sp_balance,
+    "shop_purchase",
+    `Cumpărare: ${item.name}`,
+    `shop-purchase:${itemId}`
+  );
+
+  return {
+    balance: updated.sp_balance,
+    item
+  };
+}
 async function equipItemPg(userId, itemId) {
   const item = getShopCatalog().find((i) => i.id === itemId);
   if (!item) return { error: "Item inexistent." };
@@ -1230,11 +1417,98 @@ async function equipItemPg(userId, itemId) {
 
 async function redeemPackagePg(userId, packageId) {
   const pkg = getSPPackages().find((p) => p.id === packageId);
-  if (!pkg) return { error: "Pachet inexistent." };
+
+  if (!pkg) {
+    return { error: "Pachet inexistent." };
+  }
+
   const user = await findUserByIdPg(userId);
-  if (!user) return { error: "Utilizator inexistent." };
-  const updated = await updateUserPg(userId, { sp_balance: user.sp_balance + pkg.sp });
-  return { balance: updated.sp_balance, gained: pkg.sp, package: pkg };
+
+  if (!user) {
+    return { error: "Utilizator inexistent." };
+  }
+
+  const balance = Number(user.sp_balance || 0);
+
+  const updated = await updateUserPg(userId, {
+    sp_balance: balance + pkg.sp
+  });
+
+  await addStudyPointsTransactionPg(
+    userId,
+    pkg.sp,
+    updated.sp_balance,
+    "sp_package",
+    `Pachet StudyPoints: ${pkg.label}`,
+    null
+  );
+
+  return {
+    balance: updated.sp_balance,
+    gained: pkg.sp,
+    package: pkg
+  };
+}
+async function activateProPg(userId, planId) {
+  const plan = getProPlans().find((item) => item.id === planId);
+
+  if (!plan) {
+    return { error: "Plan Pro inexistent." };
+  }
+
+  const user = await findUserByIdPg(userId);
+
+  if (!user) {
+    return { error: "Utilizator inexistent." };
+  }
+
+  const balance = Number(user.sp_balance || 0);
+
+  if (balance < plan.price) {
+    return {
+      error: "insufficient_funds",
+      needed: plan.price - balance
+    };
+  }
+
+  const now = new Date();
+
+  const existingExpiry = user.pro_expires_at
+    ? new Date(user.pro_expires_at)
+    : null;
+
+  const startDate =
+    existingExpiry && existingExpiry > now
+      ? existingExpiry
+      : now;
+
+  const expiresAt = new Date(startDate);
+
+  expiresAt.setUTCDate(
+    expiresAt.getUTCDate() + plan.durationDays
+  );
+
+  const updated = await updateUserPg(userId, {
+    sp_balance: balance - plan.price,
+    is_pro: true,
+    pro_expires_at: expiresAt.toISOString()
+  });
+
+  await addStudyPointsTransactionPg(
+    userId,
+    -plan.price,
+    updated.sp_balance,
+    "pro_purchase",
+    `Activare Pro: ${plan.name}`,
+    null
+  );
+
+  return {
+    balance: updated.sp_balance,
+    isPro: updated.is_pro,
+    proExpiresAt: updated.pro_expires_at,
+    plan
+  };
 }
 async function insertResourcePg(
   userId,
@@ -1546,15 +1820,16 @@ module.exports = {
   findUserByIdentifierPg, insertUserPg, updateUserPg,
   findUserById, findUserByIdentifier, insertUser, updateUser,
   getWallet, addSP, claimDailyBonus, claimAdWatch, redeemPackage,
-  purchaseItem, equipItem, getShopCatalog, getSPPackages, awardTaskOnTimeIfEligible,
+  purchaseItem, equipItem, getShopCatalog, getSPPackages, getProPlans,
+   awardTaskOnTimeIfEligible,
   listCourses, findCourse, insertCourse, updateCourse, deleteCourse,
   addGradingCategory, updateGradingCategory, deleteGradingCategory, addGrade, deleteGrade,
   listNotes, insertNote, updateNote, deleteNote,
   listTasks, findTask, insertTask, bulkInsertTasks, updateTaskStatus, deleteTask,
   insertResource, listResources, findResource, recordAttendance, undoLastAttendance, resetAttendance,
   addFlashcardDeck, deleteFlashcardDeck, addFlashcard, deleteFlashcard,
-  listScheduleEntries, insertScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getWalletPg, claimDailyBonusPg, claimAdWatchPg,
-purchaseItemPg, equipItemPg, redeemPackagePg,  listCoursesPg,
+  listScheduleEntries, insertScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getWalletPg, claimDailyBonusPg, claimAdWatchPg, listStudyPointsTransactionsPg,
+purchaseItemPg, equipItemPg, redeemPackagePg, activateProPg,  listCoursesPg,
   findCoursePg,
   insertCoursePg,
   updateCoursePg,  deleteCoursePg,   addGradingCategoryPg,

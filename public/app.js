@@ -9,7 +9,17 @@
 const API = "/api";
 const AUTH = "/auth";
 
-let state = { user: null, courses: [], notes: [], tasks: [], wallet: null, shopCatalog: [], spPackages: [], scheduleEntries: [] };
+let state = {
+  user: null,
+  courses: [],
+  notes: [],
+  tasks: [],
+  wallet: null,
+  shopCatalog: [],
+  spPackages: [],
+  proPlans: [],
+  scheduleEntries: []
+};
 let token = localStorage.getItem("studyapp_token") || null;
 let activeGradesCourseId = null;
 let activeCategoryIdForGrade = null;
@@ -171,8 +181,7 @@ function toggleTheme() {
 }
 (function initTheme() {
   const saved = localStorage.getItem("studyapp_theme");
-  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  applyTheme(saved || (prefersDark ? "dark" : "light"));
+  applyTheme(saved || "dark");
 })();
 document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
 document.getElementById("theme-toggle-sb").addEventListener("click", toggleTheme);
@@ -310,14 +319,24 @@ async function bootstrapApp() {
     return;
   }
 
-  const [courses, notes, tasks, wallet, shopCatalog, spPackages, scheduleEntries] = await Promise.all([
+  const [
+  courses,
+  notes,
+  tasks,
+  wallet,
+  shopCatalog,
+  spPackages,
+  proPlans,
+  scheduleEntries
+] = await Promise.all([
     api("GET", "/courses"),
     api("GET", "/notes"),
     api("GET", "/tasks"),
     api("GET", "/wallet"),
     api("GET", "/shop/catalog"),
-    api("GET", "/wallet/packages"),
-    api("GET", "/schedule")
+ api("GET", "/wallet/packages"),
+api("GET", "/wallet/pro-plans"),
+api("GET", "/schedule")
   ]);
 
   state.courses = courses;
@@ -326,6 +345,7 @@ async function bootstrapApp() {
   state.wallet = wallet;
   state.shopCatalog = shopCatalog;
   state.spPackages = spPackages;
+  state.proPlans = proPlans;
   state.scheduleEntries = scheduleEntries;
 
   loginScreen.classList.add("hidden");
@@ -345,7 +365,144 @@ async function bootstrapApp() {
   renderAll();
   requestNotificationPermission();
 }
+function getStudyPointsTransactionDescription(transaction) {
+  const type = transaction.type;
+  const rawDescription = transaction.description || "";
+  const amount = Math.abs(Number(transaction.amount || 0));
 
+  if (type === "daily_bonus") {
+    return t("shop_history_daily_bonus");
+  }
+
+  if (type === "ad_watch") {
+    return t("shop_history_ad_watch");
+  }
+
+  if (type === "sp_package") {
+    return t("shop_history_sp_package", { n: amount });
+  }
+
+  if (type === "pro_purchase") {
+    const names = {
+      "Pro 1 zi": t("pro_day_name"),
+      "Pro 7 zile": t("pro_week_name"),
+      "Pro 30 zile": t("pro_month_name")
+    };
+
+    const planName = rawDescription.replace("Activare Pro: ", "");
+
+    return t("shop_history_pro_purchase", {
+      name: names[planName] || planName
+    });
+  }
+
+  if (type === "shop_purchase") {
+    const itemName = rawDescription.replace("Cumpărare: ", "");
+
+    return t("shop_history_shop_purchase", {
+      name: itemName
+    });
+  }
+
+  return rawDescription || type;
+}
+
+
+async function loadStudyPointsHistory() {
+  const list = document.getElementById("study-points-history-list");
+
+  if (!list) return;
+
+  list.innerHTML = `
+    <div class="shop-history-empty">
+      ${t("shop_history_loading")}
+    </div>
+  `;
+
+   try {
+    console.log("History request started");
+
+    const result = await Promise.race([
+      api("GET", "/wallet/transactions"),
+
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("History request timeout"));
+        }, 8000);
+      })
+    ]);
+
+    console.log("History response received:", result);
+
+    const transactions = result.transactions || [];
+
+    if (transactions.length === 0) {
+      list.innerHTML = `
+        <div class="shop-history-empty">
+          ${t("shop_history_empty")}
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = transactions.map((transaction) => {
+      const amount = Number(transaction.amount || 0);
+
+      const amountClass = amount >= 0
+        ? "shop-history-positive"
+        : "shop-history-negative";
+
+      const amountText = amount >= 0
+        ? `+${amount} SP`
+        : `${amount} SP`;
+
+      const date = new Date(transaction.created_at);
+
+      const dateText = date.toLocaleString(
+        window.currentLang === "en" ? "en-GB" : "ro-RO",
+        {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        }
+      );
+
+      return `
+        <div class="shop-history-item">
+          <div class="shop-history-item-main">
+            <span class="shop-history-description">
+              ${getStudyPointsTransactionDescription(transaction)}
+            </span>
+
+            <span class="shop-history-date">
+              ${dateText}
+            </span>
+          </div>
+
+          <div class="shop-history-item-side">
+            <span class="${amountClass}">
+              ${amountText}
+            </span>
+
+            <span class="shop-history-balance">
+              ${t("shop_history_balance", {
+                n: transaction.balance_after
+              })}
+            </span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (err) {
+    list.innerHTML = `
+      <div class="shop-history-empty">
+        ${t("shop_history_error")}
+      </div>
+    `;
+  }
+}
 /* ================= TABS ================= */
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab));
@@ -481,13 +638,66 @@ document.getElementById("wallet-pill").addEventListener("click", () => openShop(
 
 function checkDailyBonusAvailable() {
   const card = document.getElementById("daily-bonus-card");
-  if (!state.wallet) { card.classList.add("hidden"); return; }
-  const today = todayISO();
-  if (state.wallet.lastDailyBonusDate === today) {
-    card.classList.add("hidden");
-  } else {
-    card.classList.remove("hidden");
+  const shopButton = document.getElementById("shop-claim-daily-bonus-btn");
+
+  if (!state.wallet) {
+    if (card) card.classList.add("hidden");
+    if (shopButton) shopButton.classList.add("hidden");
+    return;
   }
+
+  const alreadyClaimed = state.wallet.lastDailyBonusDate === todayISO();
+
+  if (alreadyClaimed) {
+    if (card) card.classList.add("hidden");
+    if (shopButton) shopButton.classList.add("hidden");
+  } else {
+    if (card) card.classList.remove("hidden");
+    if (shopButton) shopButton.classList.remove("hidden");
+  }
+}
+
+
+async function claimDailyBonusFromAnyPlace() {
+  try {
+    const result = await api("POST", "/wallet/daily-bonus", {});
+
+    state.wallet.balance = result.balance;
+    state.wallet.lastDailyBonusDate = todayISO();
+
+    updateWalletPill();
+    checkDailyBonusAvailable();
+
+    showToast(t("toast_daily_bonus_claimed", { n: result.gained }));
+  } catch (err) {
+    if (err.data && err.data.balance !== undefined) {
+      state.wallet.balance = err.data.balance;
+    }
+
+    state.wallet.lastDailyBonusDate = todayISO();
+
+    updateWalletPill();
+    checkDailyBonusAvailable();
+
+    showToast(t("toast_daily_bonus_already"));
+  }
+}
+
+
+document
+  .getElementById("claim-daily-bonus-btn")
+  .addEventListener("click", claimDailyBonusFromAnyPlace);
+
+
+const shopDailyBonusButton = document.getElementById(
+  "shop-claim-daily-bonus-btn"
+);
+
+if (shopDailyBonusButton) {
+  shopDailyBonusButton.addEventListener(
+    "click",
+    claimDailyBonusFromAnyPlace
+  );
 }
 
 document.getElementById("claim-daily-bonus-btn").addEventListener("click", async () => {
@@ -509,6 +719,8 @@ function openShop() {
   updateWalletPill();
   renderShopItems();
   renderShopPackages();
+  renderProPlans();
+  loadStudyPointsHistory();
   openModal("modal-shop");
 }
 
@@ -521,7 +733,29 @@ document.querySelectorAll(".shop-tab-btn").forEach((btn) => {
     document.getElementById("shop-panel-packages").classList.toggle("hidden", target !== "packages");
   });
 });
+function getShopItemDisplayName(item) {
+  const keys = {
+    "theme-sunset": "shop_item_theme_sunset",
+    "theme-ocean": "shop_item_theme_ocean",
+    "theme-forest": "shop_item_theme_forest",
+    "theme-rosegold": "shop_item_theme_rosegold",
+    "theme-neon": "shop_item_theme_neon",
+    "frame-gold": "shop_item_frame_gold"
+  };
 
+  return keys[item.id] ? t(keys[item.id]) : item.name;
+}
+
+
+function getProPlanDisplayName(plan) {
+  const keys = {
+    "pro-day": "pro_day_name",
+    "pro-week": "pro_week_name",
+    "pro-month": "pro_month_name"
+  };
+
+  return keys[plan.id] ? t(keys[plan.id]) : plan.name;
+}
 function renderShopItems() {
   const grid = document.getElementById("shop-items-grid");
   grid.innerHTML = state.shopCatalog
@@ -548,7 +782,7 @@ function renderShopItems() {
 
       return `<div class="shop-item-card">
         ${preview}
-        <div class="shop-item-name">${item.name}</div>
+       <div class="shop-item-name">${getShopItemDisplayName(item)}</div>
         ${!owned ? `<div class="shop-item-price">${item.price} SP</div>` : ""}
         ${btnHtml}
       </div>`;
@@ -614,6 +848,77 @@ function renderShopPackages() {
       showToast(t("toast_ad_watched", { n: result.gained }));
     });
   });
+}
+function renderProPlans() {
+  const grid = document.getElementById("shop-pro-plans-grid");
+
+  if (!grid) return;
+
+  if (!state.proPlans || state.proPlans.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        ${t("shop_no_pro_plans")}
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = state.proPlans
+    .map((plan) => {
+      return `
+        <div class="shop-package-card shop-pro-card">
+          <div class="shop-package-sp">
+           ${getProPlanDisplayName(plan)}
+          </div>
+
+          <div class="shop-package-price">
+            ${plan.price} SP
+          </div>
+
+          <button
+            class="btn btn-primary shop-item-btn"
+            data-activate-pro="${plan.id}"
+          >
+           ${t("shop_activate_pro_btn")}
+          </button>
+        </div>
+      `;
+    })
+    .join("");
+
+  grid.querySelectorAll("[data-activate-pro]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activateProPlan(button.dataset.activatePro);
+    });
+  });
+}
+async function activateProPlan(planId) {
+  try {
+    const result = await api(
+      "POST",
+      "/wallet/activate-pro",
+      { planId }
+    );
+
+    state.wallet.balance = result.balance;
+    state.wallet.isPro = result.isPro;
+    state.wallet.proExpiresAt = result.proExpiresAt;
+
+    updateWalletPill();
+    renderProPlans();
+
+    showToast(
+      `Pro activ până la ${new Date(result.proExpiresAt).toLocaleDateString()}`
+    );
+  } catch (err) {
+    if (err.data && err.data.needed !== undefined) {
+      showToast(
+        `Nu ai suficiente StudyPoints. Îți mai trebuie ${err.data.needed} SP.`
+      );
+    } else {
+      showToast(err.message || "Activarea Pro a eșuat.");
+    }
+  }
 }
 
 /* ================= AD WATCH SIMULATION ================= */

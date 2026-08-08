@@ -34,7 +34,7 @@
 
     <div class="login-shell">
       <div class="login-showcase">
-        <div class="showcase-badge">✨ v0.1.6</div>
+        <div class="showcase-badge">✨ v0.2-development</div>
         <h1 class="showcase-title" data-i18n-html="showcase_title"></h1>
         <p class="showcase-text" data-i18n="showcase_text"></p>
         <div class="showcase-stats">
@@ -559,10 +559,20 @@
       <div class="shop-balance-row">
         <div class="shop-balance"><span class="wallet-icon">🪙</span><span id="shop-balance-value">0</span> SP</div>
         <div class="shop-earn-actions">
-          <button id="shop-watch-ad-btn" class="btn btn-secondary" data-i18n="shop_watch_ad"></button>
-        </div>
-      </div>
+  <button
+    id="shop-claim-daily-bonus-btn"
+    class="btn btn-secondary"
+  >
+    <span data-i18n="shop_daily_bonus_btn"></span>
+  </button>
 
+  <button
+    id="shop-watch-ad-btn"
+    class="btn btn-secondary"
+    data-i18n="shop_watch_ad"
+  ></button>
+</div>
+            </div>
       <div class="shop-tabs">
         <button class="shop-tab-btn active" data-shop-tab="items" data-i18n="shop_tab_items"></button>
         <button class="shop-tab-btn" data-shop-tab="packages" data-i18n="shop_tab_packages"></button>
@@ -572,10 +582,38 @@
         <div id="shop-items-grid" class="shop-items-grid"></div>
       </div>
 
-      <div id="shop-panel-packages" class="shop-panel hidden">
-        <div id="shop-packages-grid" class="shop-packages-grid"></div>
-        <p class="muted shop-note" data-i18n="shop_packages_note"></p>
-      </div>
+ <div id="shop-panel-packages" class="shop-panel hidden">
+  <div id="shop-packages-grid" class="shop-packages-grid"></div>
+
+  <div class="shop-pro-section">
+    <h4 class="shop-pro-title">
+      <span data-i18n="shop_pro_title"></span>
+    </h4>
+
+    <p class="muted shop-note">
+      <span data-i18n="shop_pro_description"></span>
+    </p>
+
+    <div
+      id="shop-pro-plans-grid"
+      class="shop-packages-grid"
+    ></div>
+  </div>
+<section class="shop-history">
+  <h4
+    class="shop-history-title"
+    data-i18n="shop_history_title"
+  ></h4>
+
+  <div id="study-points-history-list">
+    <div
+      class="shop-history-empty"
+      data-i18n="shop_history_loading"
+    ></div>
+  </div>
+</section>
+  <p class="muted shop-note" data-i18n="shop_packages_note"></p>
+</div>
 
       <div class="modal-actions">
         <button class="btn btn-ghost" data-close-modal data-i18n="modal_close"></button>

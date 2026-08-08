@@ -2640,3 +2640,125 @@ textarea:focus {
   width: 100%;
   min-width: 0;
 }
+/* ===== STUDYPOINTS HISTORY ===== */
+
+.shop-history {
+  margin: 16px 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.shop-history-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, inherit);
+}
+
+#study-points-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 245px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.shop-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 11px;
+  border-radius: 11px;
+  background: rgba(148, 163, 184, 0.09);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.shop-history-item:hover {
+  background: rgba(148, 163, 184, 0.16);
+  transform: translateY(-1px);
+}
+
+.shop-history-item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shop-history-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.shop-history-date {
+  font-size: 0.72rem;
+  opacity: 0.58;
+}
+
+.shop-history-item-side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+
+.shop-history-positive,
+.shop-history-negative {
+  font-size: 0.86rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.shop-history-positive {
+  color: #22c55e;
+}
+
+.shop-history-negative {
+  color: #f87171;
+}
+
+.shop-history-balance {
+  font-size: 0.7rem;
+  opacity: 0.58;
+  white-space: nowrap;
+}
+
+.shop-history-empty {
+  padding: 15px 8px;
+  text-align: center;
+  font-size: 0.82rem;
+  opacity: 0.6;
+}
+
+#study-points-history-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#study-points-history-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.38);
+}
+
+@media (max-width: 520px) {
+  .shop-history-item {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .shop-history-description {
+    max-width: 170px;
+  }
+
+  .shop-history-balance {
+    font-size: 0.65rem;
+  }
+}

@@ -69,7 +69,18 @@ router.post("/wallet/daily-bonus", async (req, res) => {
   if (result.error) return res.status(404).json({ error: result.error });
   res.json(result);
 });
+router.get("/wallet/transactions", async (req, res) => {
+  const limit = Number(req.query.limit) || 50;
 
+  const transactions = await db.listStudyPointsTransactionsPg(
+    req.userId,
+    limit
+  );
+
+  res.json({
+    transactions
+  });
+});
 router.post("/wallet/watch-ad", async (req, res) => {
   const result = await db.claimAdWatchPg(req.userId);
   if (result.error === "cooldown") {
@@ -85,10 +96,45 @@ router.post("/wallet/redeem-package", async (req, res) => {
   if (result.error) return res.status(400).json({ error: result.error });
   res.json(result);
 });
+
+router.post("/wallet/activate-pro", async (req, res) => {
+  try {
+    const { planId } = req.body;
+
+    const result = await db.activateProPg(
+      req.userId,
+      planId
+    );
+
+    if (result.error === "insufficient_funds") {
+      return res.status(402).json({
+        error: "Nu ai suficiente StudyPoints.",
+        needed: result.needed
+      });
+    }
+
+    if (result.error) {
+      return res.status(400).json({
+        error: result.error
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("POST /wallet/activate-pro error:", err);
+
+    res.status(500).json({
+      error: "Eroare la activarea planului Pro."
+    });
+  }
+});
 /* Simulare de cumpărare pachet — fără procesare de plăți reale încă.
    Când vei conecta Stripe, acest endpoint devine cel apelat DUPĂ ce
    Stripe confirmă plata (webhook), nu direct din frontend. */
 
+router.get("/wallet/pro-plans", (req, res) => {
+  res.json(db.getProPlans());
+});
 
 /* ===================== SHOP ===================== */
 router.get("/shop/catalog", (req, res) => {
