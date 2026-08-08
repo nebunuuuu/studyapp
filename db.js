@@ -563,7 +563,7 @@ function findResource(id, userId) {
   const db = loadDB();
   return db.resources.find((r) => r.id === id && r.user_id === userId) || null;
 }
-function ensureAdmin() {
+async function ensureAdmin() {
   const email = (process.env.ADMIN_EMAIL || "").trim();
   const username = (process.env.ADMIN_USERNAME || "").trim();
   const password = process.env.ADMIN_PASSWORD || "";
@@ -573,11 +573,14 @@ function ensureAdmin() {
     return null;
   }
 
-  let user = findUserByIdentifier(email) || findUserByIdentifier(username);
-  const password_hash = bcrypt.hashSync(password, 10);
+  let user =
+    (await findUserByIdentifierPg(email)) ||
+    (await findUserByIdentifierPg(username));
+
+  const password_hash = await bcrypt.hash(password, 10);
 
   if (!user) {
-    user = insertUser({
+    user = await insertUserPg({
       name: username,
       email,
       username,
@@ -585,18 +588,18 @@ function ensureAdmin() {
       role: "admin"
     });
 
-    console.log(`Cont admin creat pentru ${email}`);
+    console.log(`Cont admin PostgreSQL creat pentru ${email}`);
     return user;
   }
 
-  user = updateUser(user.id, {
+  user = await updateUserPg(user.id, {
     email,
     username,
     password_hash,
     role: "admin"
   });
 
-  console.log(`Cont admin actualizat pentru ${email}`);
+  console.log(`Cont admin PostgreSQL actualizat pentru ${email}`);
   return user;
 }
 async function findUserByIdPg(id) {
