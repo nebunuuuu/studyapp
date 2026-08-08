@@ -1155,8 +1155,8 @@ async function renderCourseResources(courseId) {
 
       const addedAt =
         r.addedAt ||
-        r.added_at ||
-        r.addedat ||
+        r.addedAt ||
+        r.addedAt ||
         null;
 
       const dateText = addedAt
@@ -1757,29 +1757,65 @@ function renderGradesTab() {
 function computeAverageEvolution(course) {
   const categories = course.gradingCategories || [];
   if (categories.length === 0) return [];
-  const allGrades = (course.grades || []).slice().sort((a, b) => new Date(a.added_at) - new Date(b.added_at));
+
+  const gradeDate = (grade) =>
+    grade.addedAt ||
+    grade.added_at ||
+    grade.addedat ||
+    new Date().toISOString();
+
+  const allGrades = (course.grades || [])
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(gradeDate(a)) -
+        new Date(gradeDate(b))
+    );
+
   if (allGrades.length === 0) return [];
 
   const points = [];
   const seenGradeIds = new Set();
-  allGrades.forEach((g) => {
-    seenGradeIds.add(g.id);
+
+  allGrades.forEach((grade) => {
+    seenGradeIds.add(grade.id);
+
     let weightedSum = 0;
     let weightUsed = 0;
-    categories.forEach((cat) => {
-      const catGrades = allGrades.filter((gr) => gr.categoryId === cat.id && seenGradeIds.has(gr.id));
-      if (catGrades.length === 0) return;
-      const catAvg = catGrades.reduce((sum, gr) => sum + (gr.value / (gr.maxValue || 10)) * 10, 0) / catGrades.length;
-      weightedSum += catAvg * cat.weight;
-      weightUsed += cat.weight;
+
+    categories.forEach((category) => {
+      const categoryGrades = allGrades.filter(
+        (item) =>
+          item.categoryId === category.id &&
+          seenGradeIds.has(item.id)
+      );
+
+      if (categoryGrades.length === 0) return;
+
+      const categoryAverage =
+        categoryGrades.reduce(
+          (sum, item) =>
+            sum +
+            (item.value / (item.maxValue || 10)) * 10,
+          0
+        ) / categoryGrades.length;
+
+      weightedSum += categoryAverage * category.weight;
+      weightUsed += category.weight;
     });
+
     if (weightUsed > 0) {
-      points.push({ label: g.label || fmtDate(g.added_at.slice(0, 10)), value: weightedSum / weightUsed });
+      const date = gradeDate(grade);
+
+      points.push({
+        label: grade.label || fmtDate(date.slice(0, 10)),
+        value: weightedSum / weightUsed
+      });
     }
   });
+
   return points;
 }
-
 function renderGradesChart() {
   const course = state.courses.find((c) => c.id === activeGradesCourseId);
   const canvas = document.getElementById("grades-chart");
@@ -1944,20 +1980,55 @@ document.getElementById("save-category-btn").addEventListener("click", async () 
   } catch (err) { showToast(err.message); }
 });
 
-document.getElementById("save-grade-btn").addEventListener("click", async () => {
-  const label = document.getElementById("grade-label").value.trim();
-  const value = Number(document.getElementById("grade-value").value);
-  const maxValue = Number(document.getElementById("grade-max").value) || 10;
-  if (Number.isNaN(value)) return showToast(t("toast_fill_title_date"));
-  try {
-    const updated = await api("POST", `/courses/${activeGradesCourseId}/grades`, {
-      categoryId: activeCategoryIdForGrade, label, value, maxValue
-    });
-    updateCourseInState(updated);
-    closeModal();
-    renderGradesBody();
-  } catch (err) { showToast(err.message); }
-});
+document
+  .getElementById("save-grade-btn")
+  .addEventListener("click", async () => {
+    const label = document
+      .getElementById("grade-label")
+      .value
+      .trim();
+
+    const value = Number(
+      document.getElementById("grade-value").value
+    );
+
+    const maxValue =
+      Number(document.getElementById("grade-max").value) || 10;
+
+    if (!Number.isFinite(value)) {
+      return showToast(t("toast_fill_title_date"));
+    }
+
+    if (
+      !Number.isFinite(maxValue) ||
+      maxValue <= 0 ||
+      value < 0 ||
+      value > maxValue
+    ) {
+      return showToast(
+        `Nota trebuie să fie între 0 și ${maxValue}.`
+      );
+    }
+
+    try {
+      const updated = await api(
+        "POST",
+        `/courses/${activeGradesCourseId}/grades`,
+        {
+          categoryId: activeCategoryIdForGrade,
+          label,
+          value,
+          maxValue
+        }
+      );
+
+      updateCourseInState(updated);
+      closeModal();
+      renderGradesBody();
+    } catch (err) {
+      showToast(err.message);
+    }
+  });
 
 /* ================= SUMMARY (rezumat pe perioadă) ================= */
 async function renderSummaryTab() {

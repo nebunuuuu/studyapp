@@ -234,6 +234,18 @@ router.post(
         { name, weight }
       );
 
+      if (course?.error === "invalid_weight") {
+        return res.status(400).json({
+          error: "Ponderea trebuie să fie un număr pozitiv."
+        });
+      }
+
+      if (course?.error === "weight_exceeds_total") {
+        return res.status(400).json({
+          error: `Mai poți adăuga cel mult ${course.remainingWeight}% pondere.`
+        });
+      }
+
       if (!course) {
         return res.status(404).json({
           error: "Materie inexistentă."
@@ -243,6 +255,7 @@ router.post(
       res.status(201).json(course);
     } catch (err) {
       console.error("POST grading category error:", err);
+
       res.status(500).json({
         error: "Eroare la adăugarea categoriei."
       });
@@ -330,7 +343,11 @@ router.post(
           maxValue
         }
       );
-
+      if (course?.error === "grade_out_of_range") {
+        return res.status(400).json({
+          error: `Nota trebuie să fie între 0 și ${course.maxValue}.`
+        });
+      }
       if (!course) {
         return res.status(404).json({
           error: "Materie sau categorie inexistentă."

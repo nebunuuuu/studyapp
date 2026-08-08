@@ -826,14 +826,39 @@ async function updateCoursePg(id, userId, patch) {
 
   return mapCourseRow(rows[0]);
 }
-async function addGradingCategoryPg(courseId, userId, { name, weight }) {
+async function addGradingCategoryPg(
+  courseId,
+  userId,
+  { name, weight }
+) {
   const course = await findCoursePg(courseId, userId);
   if (!course) return null;
+
+  const numericWeight = Number(weight);
+  const existingWeight = (course.gradingCategories || []).reduce(
+    (sum, category) => sum + Number(category.weight || 0),
+    0
+  );
+
+  if (!name || !Number.isFinite(numericWeight) || numericWeight <= 0) {
+    return {
+      error: "invalid_weight"
+    };
+  }
+
+  const remainingWeight = 100 - existingWeight;
+
+  if (numericWeight > remainingWeight) {
+    return {
+      error: "weight_exceeds_total",
+      remainingWeight
+    };
+  }
 
   const category = {
     id: uid(),
     name,
-    weight: Number(weight),
+    weight: numericWeight,
     createdAt: new Date().toISOString()
   };
 
@@ -913,12 +938,28 @@ async function addGradePg(
 
   if (!categoryExists) return null;
 
+  const numericValue = Number(value);
+  const numericMaxValue = Number(maxValue) || 10;
+
+  if (
+    !Number.isFinite(numericValue) ||
+    !Number.isFinite(numericMaxValue) ||
+    numericMaxValue <= 0 ||
+    numericValue < 0 ||
+    numericValue > numericMaxValue
+  ) {
+    return {
+      error: "grade_out_of_range",
+      maxValue: numericMaxValue
+    };
+  }
+
   const grade = {
     id: uid(),
     categoryId,
     label: label || "",
-    value: Number(value),
-    maxValue: Number(maxValue) || 10,
+    value: numericValue,
+    maxValue: numericMaxValue,
     addedAt: new Date().toISOString()
   };
 
