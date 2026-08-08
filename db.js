@@ -726,6 +726,105 @@ async function updateUserPg(id, patch) {
   const { rows } = await pool.query(query, values);
   return rows[0] || null;
 }
+function mapCourseRow(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    name: row.name,
+    professor: row.professor || "",
+    color: row.color || "#5b5bf0",
+    period: row.period || null,
+    gradingCategories: row.grading_categories || [],
+    grades: row.grades || [],
+    attendance: row.attendance || { present: 0, absent: 0 },
+    flashcardDecks: row.flashcard_decks || [],
+    created_at: row.created_at
+  };
+}
+
+async function listCoursesPg(userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM courses
+     WHERE user_id = $1
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+
+  return rows.map(mapCourseRow);
+}
+
+async function findCoursePg(id, userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM courses
+     WHERE id = $1 AND user_id = $2
+     LIMIT 1`,
+    [id, userId]
+  );
+
+  return mapCourseRow(rows[0]);
+}
+
+async function insertCoursePg(userId, { name, professor, color, period }) {
+  const { rows } = await pool.query(
+    `INSERT INTO courses (
+       id, user_id, name, professor, color, period
+     )
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      uid(),
+      userId,
+      name,
+      professor || "",
+      color || "#5b5bf0",
+      period || null
+    ]
+  );
+
+  return mapCourseRow(rows[0]);
+}
+
+async function updateCoursePg(id, userId, patch) {
+  const current = await findCoursePg(id, userId);
+  if (!current) return null;
+
+  const updated = {
+    ...current,
+    ...patch
+  };
+
+  const { rows } = await pool.query(
+    `UPDATE courses SET
+       name = $3,
+       professor = $4,
+       color = $5,
+       period = $6,
+       grading_categories = $7,
+       grades = $8,
+       attendance = $9,
+       flashcard_decks = $10
+     WHERE id = $1 AND user_id = $2
+     RETURNING *`,
+    [
+      id,
+      userId,
+      updated.name,
+      updated.professor || "",
+      updated.color || "#5b5bf0",
+      updated.period || null,
+      JSON.stringify(updated.gradingCategories || []),
+      JSON.stringify(updated.grades || []),
+      JSON.stringify(updated.attendance || { present: 0, absent: 0 }),
+      JSON.stringify(updated.flashcardDecks || [])
+    ]
+  );
+
+  return mapCourseRow(rows[0]);
+}
 async function getWalletPg(userId) {
   const user = await findUserByIdPg(userId);
   if (!user) return null;
@@ -821,5 +920,8 @@ module.exports = {
   insertResource, listResources, findResource, recordAttendance, undoLastAttendance, resetAttendance,
   addFlashcardDeck, deleteFlashcardDeck, addFlashcard, deleteFlashcard,
   listScheduleEntries, insertScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getWalletPg, claimDailyBonusPg, claimAdWatchPg,
-purchaseItemPg, equipItemPg, redeemPackagePg,
+purchaseItemPg, equipItemPg, redeemPackagePg,  listCoursesPg,
+  findCoursePg,
+  insertCoursePg,
+  updateCoursePg,
 };
