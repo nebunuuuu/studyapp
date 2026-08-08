@@ -390,39 +390,118 @@ router.delete(
   }
 );
 /* ===================== NOTES (notebook) ===================== */
-router.get("/notes", (req, res) => res.json(db.listNotes(req.userId)));
-
-router.post("/notes", (req, res) => res.status(201).json(db.insertNote(req.userId)));
-
-router.put("/notes/:id", (req, res) => {
-  const updated = db.updateNote(req.params.id, req.userId, req.body);
-  if (!updated) return res.status(404).json({ error: "Notiță inexistentă." });
-  res.json(updated);
-});
-
-router.delete("/notes/:id", (req, res) => {
-  db.deleteNote(req.params.id, req.userId);
-  res.json({ ok: true });
-});
-
-/* ===================== TASKS ===================== */
-router.get("/tasks", (req, res) => res.json(db.listTasks(req.userId)));
-
-router.post("/tasks", (req, res) => {
-  const { title, courseId, type, due } = req.body;
-  if (!title || !due) return res.status(400).json({ error: "Titlu și dată necesare." });
-  res.status(201).json(db.insertTask(req.userId, { title, courseId, type, due }));
-});
-
-router.post("/tasks/import-ics", (req, res) => {
-  const { events, courseId } = req.body;
-  if (!Array.isArray(events) || events.length === 0) {
-    return res.status(400).json({ error: "Niciun eveniment de importat." });
+router.get("/notes", async (req, res) => {
+  try {
+    const notes = await db.listNotesPg(req.userId);
+    res.json(notes);
+  } catch (err) {
+    console.error("GET notes error:", err);
+    res.status(500).json({
+      error: "Eroare la încărcarea notițelor."
+    });
   }
-  const inserted = db.bulkInsertTasks(req.userId, events, courseId);
-  res.status(201).json({ imported: inserted.length, skipped: events.length - inserted.length });
 });
 
+
+router.post("/notes", async (req, res) => {
+  try {
+    const note = await db.insertNotePg(req.userId);
+    res.status(201).json(note);
+  } catch (err) {
+    console.error("POST note error:", err);
+    res.status(500).json({
+      error: "Eroare la crearea notiței."
+    });
+  }
+});
+
+
+router.put("/notes/:id", async (req, res) => {
+  try {
+    const updated = await db.updateNotePg(
+      req.params.id,
+      req.userId,
+      req.body
+    );
+
+    if (!updated) {
+      return res.status(404).json({
+        error: "Notiță inexistentă."
+      });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("PUT note error:", err);
+    res.status(500).json({
+      error: "Eroare la salvarea notiței."
+    });
+  }
+});
+
+
+router.delete("/notes/:id", async (req, res) => {
+  try {
+    await db.deleteNotePg(
+      req.params.id,
+      req.userId
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE note error:", err);
+    res.status(500).json({
+      error: "Eroare la ștergerea notiței."
+    });
+  }
+});
+/* ===================== TASKS ===================== */
+router.get("/tasks", async (req, res) => {
+  const tasks = await db.listTasksPg(req.userId);
+  res.json(tasks);
+});
+
+
+router.post("/tasks", async (req, res) => {
+  const { title, courseId, type, due } = req.body;
+
+  if (!title || !due) {
+    return res.status(400).json({
+      error: "Titlu și dată necesare."
+    });
+  }
+
+  const task = await db.insertTaskPg(req.userId, {
+    title,
+    courseId,
+    type,
+    due
+  });
+
+  res.status(201).json(task);
+});
+
+
+router.post("/tasks/import-ics", async (req, res) => {
+  const { events, courseId } = req.body;
+
+  if (!Array.isArray(events) || events.length === 0) {
+    return res.status(400).json({
+      error: "Niciun eveniment de importat."
+    });
+  }
+
+  const inserted = await db.bulkInsertTasksPg(
+    req.userId,
+    events,
+    courseId
+  );
+
+  res.status(201).json({
+    imported: inserted.length,
+    skipped: events.length - inserted.length
+  });
+});
 function fetchText(url) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith("https") ? https : http;
@@ -468,29 +547,76 @@ router.post("/tasks/sync-moodle", async (req, res) => {
       return res.status(400).json({ error: "Răspunsul de la Moodle nu conține un calendar valid." });
     }
     const events = parseICS(text);
-    const inserted = db.bulkInsertTasks(req.userId, events, courseId);
+    const inserted = await db.bulkInsertTasksPg(
+  req.userId,
+  events,
+  courseId
+);
     res.json({ imported: inserted.length, skipped: events.length - inserted.length, total: events.length });
   } catch (err) {
     res.status(502).json({ error: `Nu am putut contacta Moodle: ${err.message}` });
   }
 });
 
-router.patch("/tasks/:id", (req, res) => {
-  const task = db.findTask(req.params.id, req.userId);
-  if (!task) return res.status(404).json({ error: "Task inexistent." });
-  const newStatus = req.body.status || task.status;
-  const updated = db.updateTaskStatus(req.params.id, req.userId, newStatus);
+router.patch("/tasks/:id", async (req, res) => {
+  try {
+    const task = await db.findTaskPg(
+      req.params.id,
+      req.userId
+    );
 
-  let spResult = null;
-  if (newStatus === "done" && task.status !== "done") {
-    spResult = db.awardTaskOnTimeIfEligible(req.params.id, req.userId);
+    if (!task) {
+      return res.status(404).json({
+        error: "Task inexistent."
+      });
+    }
+
+    const newStatus = req.body.status || task.status;
+
+    const updated = await db.updateTaskStatusPg(
+      req.params.id,
+      req.userId,
+      newStatus
+    );
+
+    let spResult = null;
+
+    if (newStatus === "done" && task.status !== "done") {
+      spResult = await db.awardTaskOnTimeIfEligiblePg(
+        req.params.id,
+        req.userId
+      );
+    }
+
+    res.json({
+      ...updated,
+      spAwardedNow: spResult
+    });
+  } catch (err) {
+    console.error("PATCH task error:", err);
+
+    res.status(500).json({
+      error: "Eroare la actualizarea task-ului."
+    });
   }
-  res.json({ ...updated, spAwardedNow: spResult });
 });
 
-router.delete("/tasks/:id", (req, res) => {
-  db.deleteTask(req.params.id, req.userId);
-  res.json({ ok: true });
+
+router.delete("/tasks/:id", async (req, res) => {
+  try {
+    await db.deleteTaskPg(
+      req.params.id,
+      req.userId
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE task error:", err);
+
+    res.status(500).json({
+      error: "Eroare la ștergerea task-ului."
+    });
+  }
 });
 /* ===================== ATTENDANCE (absence tracker) ===================== */
 

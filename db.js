@@ -1288,6 +1288,259 @@ async function findResourcePg(resourceId, userId) {
 
   return rows[0]?.resource || null;
 }
+function mapNoteRow(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    title: row.title || "",
+    content: row.content || "",
+    course_id: row.course_id || null,
+    updated_at: row.updated_at
+      ? new Date(row.updated_at).toISOString()
+      : new Date().toISOString()
+  };
+}
+
+async function listNotesPg(userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM notes
+     WHERE user_id = $1
+     ORDER BY updated_at DESC`,
+    [userId]
+  );
+
+  return rows.map(mapNoteRow);
+}
+
+async function insertNotePg(userId) {
+  const { rows } = await pool.query(
+    `INSERT INTO notes (
+       id, user_id, title, content, course_id, updated_at
+     )
+     VALUES ($1, $2, '', '', NULL, NOW())
+     RETURNING *`,
+    [uid(), userId]
+  );
+
+  return mapNoteRow(rows[0]);
+}
+
+async function updateNotePg(id, userId, patch) {
+  const current = await listNotesPg(userId);
+  const note = current.find((item) => item.id === id);
+
+  if (!note) return null;
+
+  const title =
+    patch.title !== undefined ? patch.title : note.title;
+
+  const content =
+    patch.content !== undefined ? patch.content : note.content;
+
+  const courseId =
+    patch.course_id !== undefined
+      ? patch.course_id
+      : patch.courseId !== undefined
+        ? patch.courseId
+        : note.course_id;
+
+  const { rows } = await pool.query(
+    `UPDATE notes
+     SET title = $3,
+         content = $4,
+         course_id = $5,
+         updated_at = NOW()
+     WHERE id = $1 AND user_id = $2
+     RETURNING *`,
+    [id, userId, title, content, courseId || null]
+  );
+
+  return mapNoteRow(rows[0]);
+}
+
+async function deleteNotePg(id, userId) {
+  await pool.query(
+    `DELETE FROM notes
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+
+  return true;
+}
+function formatTaskDue(value) {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+
+function mapTaskRow(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    title: row.title,
+    course_id: row.course_id || null,
+    type: row.type || "tema",
+    due: formatTaskDue(row.due),
+    status: row.status || "todo",
+    source: row.source || "manual",
+    spAwarded: Boolean(row.sp_awarded)
+  };
+}
+
+
+async function listTasksPg(userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM tasks
+     WHERE user_id = $1
+     ORDER BY due ASC`,
+    [userId]
+  );
+
+  return rows.map(mapTaskRow);
+}
+
+
+async function findTaskPg(id, userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM tasks
+     WHERE id = $1 AND user_id = $2
+     LIMIT 1`,
+    [id, userId]
+  );
+
+  return mapTaskRow(rows[0]);
+}
+
+
+async function insertTaskPg(
+  userId,
+  { title, courseId, type, due }
+) {
+  const { rows } = await pool.query(
+    `INSERT INTO tasks (
+       id, user_id, title, course_id, type, due,
+       status, source, sp_awarded
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, 'todo', 'manual', FALSE)
+     RETURNING *`,
+    [
+      uid(),
+      userId,
+      title,
+      courseId || null,
+      type || "tema",
+      due
+    ]
+  );
+
+  return mapTaskRow(rows[0]);
+}
+
+
+async function bulkInsertTasksPg(userId, events, courseId) {
+  const existing = await listTasksPg(userId);
+
+  const existingKeys = new Set(
+    existing.map((task) => `${task.title}|${task.due}`)
+  );
+
+  const inserted = [];
+
+  for (const event of events) {
+    const key = `${event.title}|${event.due}`;
+
+    if (existingKeys.has(key)) {
+      continue;
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO tasks (
+         id, user_id, title, course_id, type, due,
+         status, source, sp_awarded
+       )
+       VALUES ($1, $2, $3, $4, 'tema', $5, 'todo', 'moodle', FALSE)
+       RETURNING *`,
+      [
+        uid(),
+        userId,
+        event.title,
+        courseId || null,
+        event.due
+      ]
+    );
+
+    inserted.push(mapTaskRow(rows[0]));
+    existingKeys.add(key);
+  }
+
+  return inserted;
+}
+
+
+async function updateTaskStatusPg(id, userId, status) {
+  const { rows } = await pool.query(
+    `UPDATE tasks
+     SET status = $3
+     WHERE id = $1 AND user_id = $2
+     RETURNING *`,
+    [id, userId, status]
+  );
+
+  return mapTaskRow(rows[0]);
+}
+
+
+async function deleteTaskPg(id, userId) {
+  await pool.query(
+    `DELETE FROM tasks
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+
+  return true;
+}
+
+
+async function awardTaskOnTimeIfEligiblePg(taskId, userId) {
+  const { rows } = await pool.query(
+    `UPDATE tasks
+     SET sp_awarded = TRUE
+     WHERE id = $1
+       AND user_id = $2
+       AND sp_awarded = FALSE
+       AND due >= CURRENT_DATE
+     RETURNING *`,
+    [taskId, userId]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const user = await findUserByIdPg(userId);
+  if (!user) return null;
+
+  const updatedUser = await updateUserPg(userId, {
+    sp_balance: Number(user.sp_balance || 0) + 5
+  });
+
+  return {
+    gained: 5,
+    balance: updatedUser.sp_balance
+  };
+}
 module.exports = {
   uid, loadDB, saveDB, ensureAdmin, findUserByIdPg,
   findUserByIdentifierPg, insertUserPg, updateUserPg,
@@ -1315,5 +1568,14 @@ purchaseItemPg, equipItemPg, redeemPackagePg,  listCoursesPg,
   addFlashcardPg,
   deleteFlashcardPg,   insertResourcePg,
   listResourcesPg,
-  findResourcePg,
+  findResourcePg, listNotesPg,
+insertNotePg,
+updateNotePg,
+deleteNotePg, listTasksPg,
+findTaskPg,
+insertTaskPg,
+bulkInsertTasksPg,
+updateTaskStatusPg,
+deleteTaskPg,
+awardTaskOnTimeIfEligiblePg,
 };
