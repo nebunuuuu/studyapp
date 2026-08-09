@@ -37,7 +37,7 @@ function publicUser(user) {
     is_pro: user.is_pro,
     last_daily_bonus_date: user.last_daily_bonus_date,
     needs_onboarding: user.password_hash === null,
-    last_ad_watch_at: user.last_ad_watch_at ,has_openai_key: !!user.openai_api_key
+    last_ad_watch_at: user.last_ad_watch_at
   };
 }
 

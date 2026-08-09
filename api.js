@@ -38,15 +38,18 @@ router.get("/settings", async (req, res) => {
   const user = await db.findUserByIdPg(req.userId);
   res.json(publicUser(user));
 });
-
 router.put("/settings", async (req, res) => {
-  const { moodleIcsUrl, reminderHoursBefore, educationLevel, language, openaiApiKey } = req.body;
+  const {
+  moodleIcsUrl,
+  reminderHoursBefore,
+  educationLevel,
+  language
+} = req.body;
   const patch = {};
   if (moodleIcsUrl !== undefined) patch.moodle_ics_url = moodleIcsUrl || null;
   if (Array.isArray(reminderHoursBefore)) patch.reminder_hours_before = reminderHoursBefore;
   if (educationLevel && ["facultate", "liceu"].includes(educationLevel)) patch.education_level = educationLevel;
   if (language && ["ro", "en"].includes(language)) patch.language = language;
-  if (openaiApiKey !== undefined && openaiApiKey !== "") patch.openai_api_key = openaiApiKey;
   const updated = await db.updateUserPg(req.userId, patch);
   res.json(publicUser(updated));
 });
@@ -594,10 +597,10 @@ router.post("/tasks/sync-moodle", async (req, res) => {
     }
     const events = parseICS(text);
     const inserted = await db.bulkInsertTasksPg(
-  req.userId,
-  events,
-  courseId
-);
+      req.userId,
+      events,
+      courseId
+    );
     res.json({ imported: inserted.length, skipped: events.length - inserted.length, total: events.length });
   } catch (err) {
     res.status(502).json({ error: `Nu am putut contacta Moodle: ${err.message}` });
@@ -930,9 +933,14 @@ router.delete(
    Fără cheie, returnăm o eroare clară în loc să eșuăm silențios. */
 router.post("/courses/:courseId/flashcard-decks/generate-ai", async (req, res) => {
   const user = await db.findUserByIdPg(req.userId);
-  if (!user.openai_api_key) {
-    return res.status(400).json({ error: "no_api_key", message: "Adaugă o cheie API OpenAI în Setări pentru a genera flashcards cu AI." });
-  }
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+
+if (!openaiApiKey) {
+  return res.status(500).json({
+    error: "openai_not_configured",
+    message: "Serviciul AI nu este configurat pe server."
+  });
+}
   const { topic, count } = req.body;
   if (!topic) return res.status(400).json({ error: "Subiectul e necesar." });
   const numCards = Math.min(Math.max(Number(count) || 8, 3), 20);
@@ -942,7 +950,7 @@ router.post("/courses/:courseId/flashcard-decks/generate-ai", async (req, res) =
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${user.openai_api_key}`
+        Authorization: `Bearer ${openaiApiKey}`
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
@@ -966,10 +974,10 @@ router.post("/courses/:courseId/flashcard-decks/generate-ai", async (req, res) =
       return res.status(502).json({ error: "Răspunsul AI nu a putut fi interpretat. Încearcă din nou." });
     }
     const course = await db.addFlashcardDeckPg(
-  req.params.courseId,
-  req.userId,
-  { name: topic, cards }
-);
+      req.params.courseId,
+      req.userId,
+      { name: topic, cards }
+    );
     if (!course) return res.status(404).json({ error: "Materie inexistentă." });
     res.status(201).json(course);
   } catch (err) {
@@ -1207,7 +1215,7 @@ function weightedAverage(course) {
 }
 
 router.get("/summary/periods", async (req, res) => {
- const courses = await db.listCoursesPg(req.userId);
+  const courses = await db.listCoursesPg(req.userId);
   const tasks = db.listTasks(req.userId);
 
   const periodsMap = {};

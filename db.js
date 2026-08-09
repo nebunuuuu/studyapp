@@ -105,7 +105,6 @@ function migrate(data) {
     if (u.active_theme === undefined) { u.active_theme = null; changed = true; }
     if (u.active_frame === undefined) { u.active_frame = null; changed = true; }
     if (u.is_pro === undefined) { u.is_pro = false; changed = true; }
-    if (u.openai_api_key === undefined) { u.openai_api_key = null; changed = true; }
   });
   data.courses.forEach((c) => {
     if (c.gradingCategories === undefined) { c.gradingCategories = []; changed = true; }
@@ -770,12 +769,12 @@ async function insertUserPg(user) {
       id, name, email, username, password_hash, role,
       education_level, language, moodle_ics_url, reminder_hours_before,
       sp_balance, owned_items, active_theme, active_frame, is_pro,
-      last_daily_bonus_date, last_ad_watch_at, openai_api_key, created_at
+      last_daily_bonus_date, last_ad_watch_at, created_at
     ) VALUES (
       $1, $2, $3, $4, $5, $6,
       $7, $8, $9, $10,
       $11, $12, $13, $14, $15,
-      $16, $17, $18, NOW()
+      $16, $17, NOW()
     )
     RETURNING *;
   `;
@@ -798,7 +797,6 @@ async function insertUserPg(user) {
     newUser.is_pro,
     newUser.last_daily_bonus_date,
     newUser.last_ad_watch_at,
-    newUser.openai_api_key || null
   ];
 
   const { rows } = await pool.query(query, values);
@@ -829,8 +827,7 @@ async function updateUserPg(id, patch) {
      is_pro = $15,
 pro_expires_at = $16,
 last_daily_bonus_date = $17,
-last_ad_watch_at = $18,
-openai_api_key = $19
+last_ad_watch_at = $18
     WHERE id = $1
     RETURNING *;
   `;
@@ -851,10 +848,9 @@ openai_api_key = $19
     updated.active_theme,
     updated.active_frame,
     updated.is_pro,
-updated.pro_expires_at || null,
-updated.last_daily_bonus_date,
-updated.last_ad_watch_at,
-updated.openai_api_key || null
+    updated.pro_expires_at || null,
+    updated.last_daily_bonus_date,
+    updated.last_ad_watch_at,
   ];
 
   const { rows } = await pool.query(query, values);
@@ -1021,12 +1017,12 @@ async function updateGradingCategoryPg(
   const updatedCategories = categories.map((category) =>
     category.id === categoryId
       ? {
-          ...category,
-          ...(patch.name !== undefined ? { name: patch.name } : {}),
-          ...(patch.weight !== undefined
-            ? { weight: Number(patch.weight) }
-            : {})
-        }
+        ...category,
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.weight !== undefined
+          ? { weight: Number(patch.weight) }
+          : {})
+      }
       : category
   );
 
@@ -1230,12 +1226,12 @@ async function addFlashcardPg(
   const updatedDecks = decks.map((deck) =>
     deck.id === deckId
       ? {
-          ...deck,
-          cards: [
-            ...(deck.cards || []),
-            card
-          ]
-        }
+        ...deck,
+        cards: [
+          ...(deck.cards || []),
+          card
+        ]
+      }
       : deck
   );
 
@@ -1266,9 +1262,9 @@ async function deleteFlashcardPg(
   const updatedDecks = decks.map((item) =>
     item.id === deckId
       ? {
-          ...item,
-          cards: cards.filter((card) => card.id !== cardId)
-        }
+        ...item,
+        cards: cards.filter((card) => card.id !== cardId)
+      }
       : item
   );
 
@@ -1293,21 +1289,21 @@ async function getWalletPg(userId) {
   if (!user) return null;
   const now = new Date();
   if (
-  user.is_pro === true &&
-  user.pro_expires_at &&
-  new Date(user.pro_expires_at) <= now
-) {
-  await updateUserPg(userId, {
-    is_pro: false
-  });
+    user.is_pro === true &&
+    user.pro_expires_at &&
+    new Date(user.pro_expires_at) <= now
+  ) {
+    await updateUserPg(userId, {
+      is_pro: false
+    });
 
-  user.is_pro = false;
-}
+    user.is_pro = false;
+  }
 
-const isProActive =
-  user.is_pro === true &&
-  user.pro_expires_at &&
-  new Date(user.pro_expires_at) > now;
+  const isProActive =
+    user.is_pro === true &&
+    user.pro_expires_at &&
+    new Date(user.pro_expires_at) > now;
   return {
     balance: user.sp_balance,
     ownedItems: user.owned_items,
@@ -1410,13 +1406,13 @@ async function claimDailyBonusPg(userId) {
     last_daily_bonus_date: today
   });
   await addStudyPointsTransactionPg(
-  userId,
-  20,
-  updated.sp_balance,
-  "daily_bonus",
-  "Bonus zilnic",
-  `daily-bonus:${today}`
-);
+    userId,
+    20,
+    updated.sp_balance,
+    "daily_bonus",
+    "Bonus zilnic",
+    `daily-bonus:${today}`
+  );
 
   return {
     balance: updated.sp_balance,
@@ -1932,41 +1928,41 @@ module.exports = {
   findUserById, findUserByIdentifier, insertUser, updateUser,
   getWallet, addSP, claimDailyBonus, claimAdWatch, redeemPackage,
   purchaseItem, equipItem, getShopCatalog, getSPPackages, getProPlans,
-   awardTaskOnTimeIfEligible,
+  awardTaskOnTimeIfEligible,
   listCourses, findCourse, insertCourse, updateCourse, deleteCourse,
   addGradingCategory, updateGradingCategory, deleteGradingCategory, addGrade, deleteGrade,
   listNotes, insertNote, updateNote, deleteNote,
   listTasks, findTask, insertTask, bulkInsertTasks, updateTaskStatus, deleteTask,
   insertResource, listResources, findResource, recordAttendance, undoLastAttendance, resetAttendance,
   addFlashcardDeck, deleteFlashcardDeck, addFlashcard, deleteFlashcard,
- getWalletPg, claimDailyBonusPg, claimAdWatchPg, listStudyPointsTransactionsPg,
-purchaseItemPg, equipItemPg, redeemPackagePg, activateProPg,  listCoursesPg,
+  getWalletPg, claimDailyBonusPg, claimAdWatchPg, listStudyPointsTransactionsPg,
+  purchaseItemPg, equipItemPg, redeemPackagePg, activateProPg, listCoursesPg,
   findCoursePg,
   insertCoursePg,
-  updateCoursePg,  deleteCoursePg,   addGradingCategoryPg,
+  updateCoursePg, deleteCoursePg, addGradingCategoryPg,
   updateGradingCategoryPg,
   deleteGradingCategoryPg,
   addGradePg,
-  deleteGradePg,   recordAttendancePg,
+  deleteGradePg, recordAttendancePg,
   undoLastAttendancePg,
-  resetAttendancePg,  addFlashcardDeckPg,
+  resetAttendancePg, addFlashcardDeckPg,
   deleteFlashcardDeckPg,
   addFlashcardPg,
-  deleteFlashcardPg,   insertResourcePg,
+  deleteFlashcardPg, insertResourcePg,
   listResourcesPg,
   findResourcePg, listNotesPg,
-insertNotePg,
-updateNotePg,
-deleteNotePg, listTasksPg,
-findTaskPg,
-insertTaskPg,
-bulkInsertTasksPg,
-updateTaskStatusPg,
-deleteTaskPg,
-awardTaskOnTimeIfEligiblePg,
-listScheduleEntriesPg,
-findScheduleEntryPg,
-insertScheduleEntryPg,
-updateScheduleEntryPg,
-deleteScheduleEntryPg,
+  insertNotePg,
+  updateNotePg,
+  deleteNotePg, listTasksPg,
+  findTaskPg,
+  insertTaskPg,
+  bulkInsertTasksPg,
+  updateTaskStatusPg,
+  deleteTaskPg,
+  awardTaskOnTimeIfEligiblePg,
+  listScheduleEntriesPg,
+  findScheduleEntryPg,
+  insertScheduleEntryPg,
+  updateScheduleEntryPg,
+  deleteScheduleEntryPg,
 };

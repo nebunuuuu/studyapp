@@ -738,25 +738,24 @@ overlay.addEventListener("click", e => {
 
 /* ================= SETTINGS ================= */
 function openSettingsModal() {
-  document.getElementById("settings-moodle-url").value = state.user.moodle_ics_url || "";
-  document.getElementById("settings-openai-key").value = "";
-  const keyStatus = document.getElementById("openai-key-status");
-  const keyInput = document.getElementById("settings-openai-key");
-  if (state.user.has_openai_key) {
-    keyStatus.textContent = "✓ Cheie salvată — completează câmpul doar dacă vrei să o înlocuiești";
-    keyStatus.className = "openai-key-status has-key";
-    keyInput.placeholder = "sk-... (opțional, doar pentru înlocuire)";
-  } else {
-    keyStatus.textContent = "";
-    keyStatus.className = "openai-key-status no-key";
-    keyInput.placeholder = "sk-...";
-  }
-  document.getElementById("settings-language").value = window.currentLang;
-  document.getElementById("settings-education-level").value = state.user.education_level || "facultate";
-  const activeHours = state.user.reminder_hours_before || [24, 1];
-  document.querySelectorAll("#reminder-options input[type=checkbox]").forEach((cb) => {
-    cb.checked = activeHours.includes(Number(cb.value));
-  });
+  document.getElementById("settings-moodle-url").value =
+    state.user.moodle_ics_url || "";
+
+  document.getElementById("settings-language").value =
+    window.currentLang;
+
+  document.getElementById("settings-education-level").value =
+    state.user.education_level || "facultate";
+
+  const activeHours =
+    state.user.reminder_hours_before || [24, 1];
+
+  document
+    .querySelectorAll("#reminder-options input[type=checkbox]")
+    .forEach((cb) => {
+      cb.checked = activeHours.includes(Number(cb.value));
+    });
+
   openModal("modal-settings");
 }
 document.getElementById("settings-btn").addEventListener("click", openSettingsModal);
@@ -768,10 +767,13 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
     .map((cb) => Number(cb.value));
   const language = document.getElementById("settings-language").value;
   const educationLevel = document.getElementById("settings-education-level").value;
-  const openaiApiKey = document.getElementById("settings-openai-key").value.trim();
 
-  const payload = { moodleIcsUrl, reminderHoursBefore, language, educationLevel };
-  if (openaiApiKey) payload.openaiApiKey = openaiApiKey;
+  const payload = {
+  moodleIcsUrl,
+  reminderHoursBefore,
+  language,
+  educationLevel
+};
 
   try {
     const updated = await api("PUT", "/settings", payload);
@@ -779,7 +781,6 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
     state.user.reminder_hours_before = updated.reminder_hours_before;
     state.user.education_level = updated.education_level;
     state.user.language = updated.language;
-    state.user.has_openai_key = updated.has_openai_key;
     closeModal();
     if (window.currentLang !== language) setLang(language);
     else populatePeriodOptions();
