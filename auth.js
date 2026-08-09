@@ -189,17 +189,26 @@ router.get("/google", (req, res) => {
 
 router.post("/google/start", (req, res) => {
   const { accessCode } = req.body;
-  const configuredAlphaCode = (process.env.ALPHA_ACCESS_CODE || "").trim();
+const configuredAlphaCodes = String(
+  process.env.ALPHA_ACCESS_CODE || ""
+)
+  .split(",")
+  .map((code) => code.trim().toUpperCase())
+  .filter(Boolean);
 
-  if (!configuredAlphaCode) {
-    return res.status(500).json({
-      error: "Codul de acces alpha nu este configurat pe server."
-    });
-  }
+if (!configuredAlphaCodes.length) {
+  return res.status(500).json({
+    error: "Codul de acces alpha nu este configurat pe server."
+  });
+}
 
- const alphaGranted =
-  Boolean(accessCode) &&
-  accessCode.trim().toUpperCase() === configuredAlphaCode.toUpperCase();
+const normalizedAccessCode = String(accessCode || "")
+  .trim()
+  .toUpperCase();
+
+const alphaGranted =
+  Boolean(normalizedAccessCode) &&
+  configuredAlphaCodes.includes(normalizedAccessCode);
 
 if (!alphaGranted) {
   return res.status(403).json({
