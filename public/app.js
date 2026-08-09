@@ -128,7 +128,38 @@ function goHome() {
   document.querySelector(".content").scrollTo({ top: 0, behavior: "smooth" });
 }
 document.getElementById("logo-home-sidebar").addEventListener("click", goHome);
-document.getElementById("logo-home-topbar").addEventListener("click", goHome);
+
+const mobileSidebar = document.querySelector(".sidebar");
+const mobileLogo = document.getElementById("logo-home-topbar");
+
+function closeMobileMenu() {
+  if (mobileSidebar) {
+    mobileSidebar.classList.remove("mobile-open");
+  }
+}
+
+function toggleMobileMenu(event) {
+  event.stopPropagation();
+
+  if (!isMobileNav()) {
+    goHome();
+    return;
+  }
+
+  mobileSidebar.classList.toggle("mobile-open");
+}
+
+mobileLogo.addEventListener("click", toggleMobileMenu);
+
+document.addEventListener("click", (event) => {
+  if (!mobileSidebar || !mobileSidebar.classList.contains("mobile-open")) {
+    return;
+  }
+
+  if (!mobileSidebar.contains(event.target) && event.target !== mobileLogo) {
+    closeMobileMenu();
+  }
+});
 
 /* ================= TOPBAR SHADOW ON SCROLL ================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -650,6 +681,7 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 });
 
 function switchTab(name) {
+  closeMobileMenu();
   document.querySelectorAll(".tab").forEach((tEl) => tEl.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
   document.getElementById(`tab-${name}`).classList.add("active");

@@ -605,6 +605,93 @@ textarea:focus {
     display: flex;
   }
 }
+@media (max-width: 859px) {
+  .sidebar {
+    display: flex;
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    bottom: 0;
+    z-index: 1100;
+    width: min(82vw, 280px);
+    height: calc(100dvh - var(--topbar-h));
+    padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
+
+    border: 1px solid var(--border);
+    border-left: 0;
+    border-radius: 0 24px 24px 0;
+    box-shadow: 14px 0 38px rgba(20, 20, 50, 0.22);
+    backdrop-filter: blur(18px);
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-105%);
+
+    transition:
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.22s ease,
+      visibility 0.32s ease;
+  }
+
+  .sidebar.mobile-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  .sidebar.mobile-open .sidebar-nav {
+    overflow-y: auto;
+  }
+
+  .sidebar.mobile-open .sidebar-logo {
+    padding-bottom: 18px;
+  }
+
+  .sidebar-nav .tab-btn {
+    transform: translateX(-8px);
+    opacity: 0;
+    transition:
+      transform 0.28s ease,
+      opacity 0.22s ease,
+      background 0.18s,
+      color 0.18s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(1) {
+    transition-delay: 0.04s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(2) {
+    transition-delay: 0.07s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(3) {
+    transition-delay: 0.10s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(4) {
+    transition-delay: 0.13s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(5) {
+    transition-delay: 0.16s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(6) {
+    transition-delay: 0.19s;
+  }
+
+  .sidebar.mobile-open .sidebar-nav .tab-btn:nth-child(7) {
+    transition-delay: 0.22s;
+  }
+}
 
 .sidebar-logo {
   padding: 6px 10px 22px;
