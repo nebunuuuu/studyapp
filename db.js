@@ -623,6 +623,151 @@ async function ensureAdmin() {
   console.log(`Cont admin PostgreSQL actualizat pentru ${email}`);
   return user;
 }
+function mapScheduleRow(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    course_id: row.course_id,
+    title: row.title || "",
+    day: Number(row.day),
+    startTime: row.start_time,
+    endTime: row.end_time,
+    room: row.room || "",
+    type: row.type || "ora",
+    parity: row.parity || "all",
+    color: row.color || "#5b5bf0",
+    created_at: row.created_at,
+    updated_at: row.updated_at
+  };
+}
+
+async function listScheduleEntriesPg(userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM schedule_entries
+     WHERE user_id = $1
+     ORDER BY day ASC, start_time ASC`,
+    [userId]
+  );
+
+  return rows.map(mapScheduleRow);
+}
+
+async function findScheduleEntryPg(id, userId) {
+  const { rows } = await pool.query(
+    `SELECT *
+     FROM schedule_entries
+     WHERE id = $1 AND user_id = $2
+     LIMIT 1`,
+    [id, userId]
+  );
+
+  return mapScheduleRow(rows[0]);
+}
+
+async function insertScheduleEntryPg(
+  userId,
+  {
+    courseId,
+    title,
+    day,
+    startTime,
+    endTime,
+    room,
+    type,
+    parity,
+    color
+  }
+) {
+  const { rows } = await pool.query(
+    `INSERT INTO schedule_entries (
+       id,
+       user_id,
+       course_id,
+       title,
+       day,
+       start_time,
+       end_time,
+       room,
+       type,
+       parity,
+       color
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     RETURNING *`,
+    [
+      uid(),
+      userId,
+      courseId || null,
+      title || "",
+      Number(day),
+      startTime,
+      endTime,
+      room || "",
+      type || "ora",
+      parity || "all",
+      color || "#5b5bf0"
+    ]
+  );
+
+  return mapScheduleRow(rows[0]);
+}
+
+async function updateScheduleEntryPg(id, userId, patch) {
+  const current = await findScheduleEntryPg(id, userId);
+  if (!current) return null;
+
+  const updated = {
+    ...current,
+    ...patch
+  };
+
+  const courseId = patch.courseId ?? patch.course_id ?? current.course_id;
+
+  const { rows } = await pool.query(
+    `UPDATE schedule_entries
+     SET
+       course_id = $3,
+       title = $4,
+       day = $5,
+       start_time = $6,
+       end_time = $7,
+       room = $8,
+       type = $9,
+       parity = $10,
+       color = $11,
+       updated_at = NOW()
+     WHERE id = $1 AND user_id = $2
+     RETURNING *`,
+    [
+      id,
+      userId,
+      courseId || null,
+      updated.title || "",
+      Number(updated.day),
+      updated.startTime,
+      updated.endTime,
+      updated.room || "",
+      updated.type || "ora",
+      updated.parity || "all",
+      updated.color || "#5b5bf0"
+    ]
+  );
+
+  return mapScheduleRow(rows[0]);
+}
+
+async function deleteScheduleEntryPg(id, userId) {
+  const result = await pool.query(
+    `DELETE FROM schedule_entries
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  );
+
+  return result.rowCount > 0;
+}
 async function findUserByIdPg(id) {
   const { rows } = await pool.query("SELECT * FROM users WHERE id = $1 LIMIT 1", [id]);
   return rows[0] || null;
@@ -1853,4 +1998,9 @@ bulkInsertTasksPg,
 updateTaskStatusPg,
 deleteTaskPg,
 awardTaskOnTimeIfEligiblePg,
+listScheduleEntriesPg,
+findScheduleEntryPg,
+insertScheduleEntryPg,
+updateScheduleEntryPg,
+deleteScheduleEntryPg,
 };

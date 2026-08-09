@@ -1074,28 +1074,119 @@ router.get(
   }
 );
 /* ===================== SCHEDULE (orar) ===================== */
-router.get("/schedule", (req, res) => {
-  res.json(db.listScheduleEntries(req.userId));
-});
 
-router.post("/schedule", (req, res) => {
-  const { courseId, title, day, startTime, endTime, room, type, parity, color } = req.body;
-  if (day === undefined || !startTime || !endTime) {
-    return res.status(400).json({ error: "Ziua și orele de început/sfârșit sunt necesare." });
+router.get("/schedule", async (req, res) => {
+  try {
+    const entries = await db.listScheduleEntriesPg(req.userId);
+    res.json(entries);
+  } catch (err) {
+    console.error("GET schedule error:", err);
+    res.status(500).json({
+      error: "Eroare la încărcarea orarului."
+    });
   }
-  const entry = db.insertScheduleEntry(req.userId, { courseId, title, day, startTime, endTime, room, type, parity, color });
-  res.status(201).json(entry);
 });
 
-router.patch("/schedule/:id", (req, res) => {
-  const updated = db.updateScheduleEntry(req.params.id, req.userId, req.body);
-  if (!updated) return res.status(404).json({ error: "Intrare de orar inexistentă." });
-  res.json(updated);
+router.post("/schedule", async (req, res) => {
+  try {
+    const {
+      courseId,
+      title,
+      day,
+      startTime,
+      endTime,
+      room,
+      type,
+      parity,
+      color
+    } = req.body;
+
+    if (
+      day === undefined ||
+      !startTime ||
+      !endTime
+    ) {
+      return res.status(400).json({
+        error: "Ziua și orele de început/sfârșit sunt necesare."
+      });
+    }
+
+    const numericDay = Number(day);
+
+    if (
+      !Number.isInteger(numericDay) ||
+      numericDay < 0 ||
+      numericDay > 6
+    ) {
+      return res.status(400).json({
+        error: "Ziua introdusă nu este validă."
+      });
+    }
+
+    const entry = await db.insertScheduleEntryPg(req.userId, {
+      courseId,
+      title,
+      day: numericDay,
+      startTime,
+      endTime,
+      room,
+      type,
+      parity,
+      color
+    });
+
+    res.status(201).json(entry);
+  } catch (err) {
+    console.error("POST schedule error:", err);
+    res.status(500).json({
+      error: "Eroare la crearea intrării de orar."
+    });
+  }
 });
 
-router.delete("/schedule/:id", (req, res) => {
-  db.deleteScheduleEntry(req.params.id, req.userId);
-  res.json({ ok: true });
+router.patch("/schedule/:id", async (req, res) => {
+  try {
+    const updated = await db.updateScheduleEntryPg(
+      req.params.id,
+      req.userId,
+      req.body
+    );
+
+    if (!updated) {
+      return res.status(404).json({
+        error: "Intrare de orar inexistentă."
+      });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("PATCH schedule error:", err);
+    res.status(500).json({
+      error: "Eroare la actualizarea intrării de orar."
+    });
+  }
+});
+
+router.delete("/schedule/:id", async (req, res) => {
+  try {
+    const deleted = await db.deleteScheduleEntryPg(
+      req.params.id,
+      req.userId
+    );
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: "Intrare de orar inexistentă."
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE schedule error:", err);
+    res.status(500).json({
+      error: "Eroare la ștergerea intrării de orar."
+    });
+  }
 });
 
 /* ===================== SUMMARY (rezumat pe semestru/modul) ===================== */
