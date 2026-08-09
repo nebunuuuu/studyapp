@@ -530,40 +530,6 @@ function deleteFlashcard(courseId, userId, deckId, cardId) {
 }
 
 /* ===================== SCHEDULE (orar) ===================== */
-function listScheduleEntries(userId) {
-  const db = loadDB();
-  return db.scheduleEntries.filter((e) => e.user_id === userId);
-}
-function insertScheduleEntry(userId, { courseId, title, day, startTime, endTime, room, type, parity, color }) {
-  const db = loadDB();
-  const entry = {
-    id: uid(), user_id: userId,
-    course_id: courseId || null,
-    title: title || "",
-    day: Number(day),
-    startTime, endTime,
-    room: room || "",
-    type: type || "curs",
-    parity: parity || "all",
-    color: color || null
-  };
-  db.scheduleEntries.push(entry);
-  saveDB(db);
-  return entry;
-}
-function updateScheduleEntry(id, userId, patch) {
-  const db = loadDB();
-  const idx = db.scheduleEntries.findIndex((e) => e.id === id && e.user_id === userId);
-  if (idx === -1) return null;
-  db.scheduleEntries[idx] = { ...db.scheduleEntries[idx], ...patch };
-  saveDB(db);
-  return db.scheduleEntries[idx];
-}
-function deleteScheduleEntry(id, userId) {
-  const db = loadDB();
-  db.scheduleEntries = db.scheduleEntries.filter((e) => !(e.id === id && e.user_id === userId));
-  saveDB(db);
-}
 
 /* ===================== RESOURCES ===================== */
 function insertResource(userId, courseId, { filename, originalName, sizeKb }) {
@@ -1973,7 +1939,7 @@ module.exports = {
   listTasks, findTask, insertTask, bulkInsertTasks, updateTaskStatus, deleteTask,
   insertResource, listResources, findResource, recordAttendance, undoLastAttendance, resetAttendance,
   addFlashcardDeck, deleteFlashcardDeck, addFlashcard, deleteFlashcard,
-  listScheduleEntries, insertScheduleEntry, updateScheduleEntry, deleteScheduleEntry, getWalletPg, claimDailyBonusPg, claimAdWatchPg, listStudyPointsTransactionsPg,
+ getWalletPg, claimDailyBonusPg, claimAdWatchPg, listStudyPointsTransactionsPg,
 purchaseItemPg, equipItemPg, redeemPackagePg, activateProPg,  listCoursesPg,
   findCoursePg,
   insertCoursePg,
