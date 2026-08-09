@@ -6,6 +6,7 @@
 
 const I18N = {
   ro: {
+    register_access_code_ph: "Cod de acces alpha",
     schedule_filter_all: "Toate",
     schedule_filter_curs: "Curs",
     schedule_filter_seminar: "Seminar",
@@ -237,10 +238,29 @@ shop_item_frame_gold: "Cadru auriu avatar",
     toast_invalid_ics: "Textul nu pare a fi un fișier .ics valid.",
     toast_no_events: "Niciun eveniment găsit în fișier.",
     toast_events_imported: "{n} evenimente importate.",
-    toast_apple_soon: "Sign in with Apple necesită domeniu public + Apple Developer Program. Va fi activat la publicare."
+    toast_apple_soon: "Sign in with Apple necesită domeniu public + Apple Developer Program. Va fi activat la publicare.",
+    google_email_ph: "Emailul contului Google",
+    alpha_code_required: "Este necesar un cod de tester.",
+alpha_code_invalid: "Codul de acces Alpha este invalid sau a expirat.",
+alpha_register_hint: "Codul Alpha este necesar pentru crearea contului.",
+alpha_google_hint: "Codul Alpha este necesar pentru autentificarea cu Google.",
+alpha_code_required: "Este necesar codul Alpha.",
+alpha_code_invalid: "Codul de acces Alpha este invalid sau a expirat.",
+onboarding_title: "Configurează-ți contul",
+onboarding_text: "Mai avem nevoie de câteva detalii pentru a începe.",
+onboarding_username_ph: "Alege un username",
+onboarding_password_ph: "Alege o parolă",
+onboarding_continue: "Salvează și continuă",
+onboarding_password_required: "Este necesar să alegi o parolă.",
+onboarding_username_required: "Este necesar un username.",
+onboarding_save_error: "Nu am putut salva datele contului.",
+onboarding_saved: "Contul a fost configurat cu succes.",
+
+
   },
 
   en: {
+    register_access_code_ph: "Alpha access code",
     schedule_filter_all: "All",
     schedule_filter_curs: "Lecture",
     schedule_filter_seminar: "Seminar",
@@ -472,7 +492,23 @@ shop_item_frame_gold: "Golden avatar frame",
     toast_invalid_ics: "This text doesn't look like a valid .ics file.",
     toast_no_events: "No events found in the file.",
     toast_events_imported: "{n} events imported.",
-    toast_apple_soon: "Sign in with Apple requires a public domain + Apple Developer Program. Will be enabled at launch."
+    toast_apple_soon: "Sign in with Apple requires a public domain + Apple Developer Program. Will be enabled at launch.",
+    google_email_ph: "Google account email",
+    alpha_code_required: "A tester code is required.",
+alpha_code_invalid: "Invalid or expired Alpha access code.",
+alpha_register_hint: "The Alpha code is required to create an account.",
+alpha_google_hint: "The Alpha code is required to sign in with Google.",
+alpha_code_required: "The Alpha code is required.",
+alpha_code_invalid: "Invalid or expired Alpha access code.",
+onboarding_title: "Set up your account",
+onboarding_text: "We just need a few more details to get you started.",
+onboarding_username_ph: "Choose a username",
+onboarding_password_ph: "Choose a password",
+onboarding_continue: "Save and continue",
+onboarding_password_required: "You need to choose a password.",
+onboarding_username_required: "A username is required.",
+onboarding_save_error: "We could not save your account details.",
+onboarding_saved: "Your account has been set up successfully.",
   }
 };
 

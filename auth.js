@@ -36,6 +36,7 @@ function publicUser(user) {
     active_frame: user.active_frame,
     is_pro: user.is_pro,
     last_daily_bonus_date: user.last_daily_bonus_date,
+    needs_onboarding: user.password_hash === null,
     last_ad_watch_at: user.last_ad_watch_at ,has_openai_key: !!user.openai_api_key
   };
 }
@@ -60,8 +61,33 @@ function authMiddleware(req, res, next) {
 }
 
 router.post("/register", async (req, res) => {
-  const { name, email, password, educationLevel } = req.body;
+const {
+  name,
+  email,
+  password,
+  educationLevel,
+  accessCode
+} = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: "Toate câmpurile sunt necesare." });
+  const configuredAlphaCode = (process.env.ALPHA_ACCESS_CODE || "").trim();
+
+if (!configuredAlphaCode) {
+  return res.status(500).json({
+    error: "Codul de acces alpha nu este configurat pe server."
+  });
+}
+
+const alphaGranted =
+  Boolean(accessCode) &&
+  accessCode.trim().toUpperCase() === configuredAlphaCode.toUpperCase();
+
+if (!alphaGranted) {
+  return res.status(403).json({
+    error: accessCode
+      ? "alpha_code_invalid"
+      : "alpha_code_invalid"
+  });
+}
   if (password.length < 8) return res.status(400).json({ error: "Parola trebuie să aibă minim 8 caractere." });
   if (await db.findUserByIdentifierPg(email)) {
   return res.status(409).json({ error: "Există deja un cont cu acest email." });
@@ -93,29 +119,146 @@ router.get("/me", authMiddleware, async (req, res) => {
   if (!user) return res.status(404).json({ error: "Utilizator inexistent." });
   res.json({ user: publicUser(user) });
 });
+router.put("/onboarding", authMiddleware, async (req, res) => {
+  const {
+    username,
+    password,
+    educationLevel
+  } = req.body;
 
-/* ===================== GOOGLE OAUTH ===================== */
-router.get("/google", (req, res) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    return res.status(500).send("Google OAuth nu este configurat (GOOGLE_CLIENT_ID lipsă din .env).");
+  const cleanUsername = String(username || "").trim();
+  const cleanPassword = String(password || "");
+
+  if (!cleanUsername || !cleanPassword || !educationLevel) {
+    return res.status(400).json({
+      error: "Toate câmpurile sunt necesare."
+    });
   }
-const redirectUri = GOOGLE_REDIRECT_URI;
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: "code",
-    scope: "openid email profile",
-    prompt: "select_account"
+
+  if (cleanPassword.length < 8) {
+    return res.status(400).json({
+      error: "Parola trebuie să aibă cel puțin 8 caractere."
+    });
+  }
+
+  if (!["facultate", "liceu"].includes(educationLevel)) {
+    return res.status(400).json({
+      error: "Nivel de studiu invalid."
+    });
+  }
+
+  const user = await db.findUserByIdPg(req.userId);
+
+  if (!user) {
+    return res.status(404).json({
+      error: "Utilizator inexistent."
+    });
+  }
+
+  if (user.password_hash) {
+    return res.status(400).json({
+      error: "Configurarea inițială este deja finalizată."
+    });
+  }
+
+  const existingUser = await db.findUserByIdentifierPg(cleanUsername);
+
+  if (existingUser && existingUser.id !== user.id) {
+    return res.status(409).json({
+      error: "Username-ul este deja folosit."
+    });
+  }
+
+  const passwordHash = await bcrypt.hash(cleanPassword, 12);
+
+  const updatedUser = await db.updateUserPg(req.userId, {
+    username: cleanUsername,
+    password_hash: passwordHash,
+    education_level: educationLevel
   });
-  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+
+  res.json({
+    user: publicUser(updatedUser)
+  });
+});
+/* ===================== GOOGLE OAUTH ===================== */
+
+router.get("/google", (req, res) => {
+  res.redirect("/?error=alpha_code_required");
 });
 
+router.post("/google/start", (req, res) => {
+  const { accessCode } = req.body;
+  const configuredAlphaCode = (process.env.ALPHA_ACCESS_CODE || "").trim();
+
+  if (!configuredAlphaCode) {
+    return res.status(500).json({
+      error: "Codul de acces alpha nu este configurat pe server."
+    });
+  }
+
+ const alphaGranted =
+  Boolean(accessCode) &&
+  accessCode.trim().toUpperCase() === configuredAlphaCode.toUpperCase();
+
+if (!alphaGranted) {
+  return res.status(403).json({
+    error: accessCode
+      ? "alpha_code_invalid"
+      : "alpha_code_required"
+  });
+}
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+
+  if (!clientId) {
+    return res.status(500).json({
+      error: "Google OAuth nu este configurat."
+    });
+  }
+
+ const oauthState = jwt.sign(
+  {
+    flow: "google-alpha",
+    alphaGranted
+  },
+  JWT_SECRET,
+  { expiresIn: "10m" }
+);
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: GOOGLE_REDIRECT_URI,
+    response_type: "code",
+    scope: "openid email profile",
+    prompt: "select_account",
+    state: oauthState
+  });
+
+  res.json({
+    url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  });
+});
 router.get("/google/callback", async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!code || !clientId || !clientSecret) return res.redirect("/?error=oauth_config");
+
+  if (!code || !state || !clientId || !clientSecret) {
+    return res.redirect("/?error=oauth_config");
+  }
+
+  let oauthState;
+
+  try {
+    oauthState = jwt.verify(state, JWT_SECRET);
+  } catch {
+    return res.redirect("/?error=alpha_code_required");
+  }
+
+  if (!oauthState || oauthState.flow !== "google-alpha") {
+    return res.redirect("/?error=alpha_code_required");
+  }
 
   try {
    const redirectUri = GOOGLE_REDIRECT_URI;
@@ -135,16 +278,21 @@ router.get("/google/callback", async (req, res) => {
     });
     const profile = await profileRes.json();
 
-    let user = await db.findUserByIdentifierPg(profile.email);
-    if (!user) {
-      user = await db.insertUserPg({
-        name: profile.name || profile.email.split("@")[0],
-        email: profile.email,
-        username: profile.email.split("@")[0],
-        password_hash: null,
-        education_level: "facultate"
-      });
-    }
+   let user = await db.findUserByIdentifierPg(profile.email);
+
+if (!user && !oauthState.alphaGranted) {
+  return res.redirect("/?error=alpha_code_required");
+}
+
+if (!user) {
+  user = await db.insertUserPg({
+    name: profile.name || profile.email.split("@")[0],
+    email: profile.email,
+    username: profile.email.split("@")[0],
+    password_hash: null,
+    education_level: "facultate"
+  });
+}
     const token = signToken(user);
     res.redirect(`/?token=${token}`);
   } catch (err) {

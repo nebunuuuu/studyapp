@@ -243,7 +243,7 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     state.user = data.user;
     await bootstrapApp();
   } catch (err) {
-    errBox.textContent = err.message;
+    errBox.textContent = t(err.message) || err.message;
     errBox.classList.remove("hidden");
   }
 });
@@ -253,25 +253,70 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
   const name = document.getElementById("register-name").value.trim();
   const email = document.getElementById("register-email").value.trim();
   const password = document.getElementById("register-password").value;
+  const accessCode = document
+  .getElementById("register-access-code")
+  .value
+  .trim();
   const educationLevel = document.getElementById("register-level").value;
   const errBox = document.getElementById("register-error");
   errBox.classList.add("hidden");
   try {
-    const data = await authApi("/register", { name, email, password, educationLevel });
+   const data = await authApi("/register", {
+  name,
+  email,
+  password,
+  educationLevel,
+  accessCode
+});
     token = data.token;
     localStorage.setItem("studyapp_token", token);
     state.user = data.user;
     await bootstrapApp();
   } catch (err) {
-    errBox.textContent = err.message;
+    errBox.textContent = t(err.message) || err.message;
     errBox.classList.remove("hidden");
   }
 });
 
-document.getElementById("google-login-btn").addEventListener("click", () => {
-  window.location.href = AUTH + "/google";
-});
+document.getElementById("google-login-btn").addEventListener("click", async () => {
+  const code = document.getElementById("oauth-access-code").value.trim();
+  const errorBox = document.getElementById("oauth-error");
 
+  errorBox.classList.add("hidden");
+
+  if (!code) {
+    errorBox.textContent = t("alpha_code_required");
+    errorBox.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${AUTH}/google/start`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessCode: code
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+     throw new Error(
+  data.error === "alpha_code_invalid"
+    ? t("alpha_code_invalid")
+    : data.error || t("alpha_code_invalid")
+);
+    }
+
+    window.location.href = data.url;
+  } catch (error) {
+    errorBox.textContent = error.message;
+    errorBox.classList.remove("hidden");
+  }
+});
 document.getElementById("apple-login-btn").addEventListener("click", () => {
   showToast(t("toast_apple_soon"));
 });
@@ -350,6 +395,25 @@ api("GET", "/schedule")
 
   loginScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
+if (state.user.needs_onboarding) {
+  const savedLang = localStorage.getItem("studyapplang");
+
+  if (savedLang) {
+    window.currentLang = savedLang;
+  }
+
+  applyTranslations();
+
+  const usernameInput = document.getElementById("onboarding-username");
+
+  usernameInput.value =
+    state.user.username ||
+    state.user.email?.split("@")[0] ||
+    "";
+
+  openModal("modal-onboarding");
+}
+
   applyTranslations();
   populatePeriodOptions();
   document.getElementById("greeting").textContent = `${t("greeting_hello")}, ${state.user.name.split(" ")[0]}!`;
@@ -365,6 +429,83 @@ api("GET", "/schedule")
   renderAll();
   requestNotificationPermission();
 }
+document
+  .getElementById("complete-onboarding-btn")
+  .addEventListener("click", async () => {
+    const usernameInput = document.getElementById("onboarding-username");
+    const passwordInput = document.getElementById("onboarding-password");
+    const errorBox = document.getElementById("onboarding-error");
+    const onboarding = document.getElementById("modal-onboarding");
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    errorBox.classList.add("hidden");
+
+    if (!username) {
+      errorBox.textContent = t("onboarding_username_required");
+      errorBox.classList.remove("hidden");
+      usernameInput.focus();
+
+      onboarding.classList.remove("onboarding-shake");
+      void onboarding.offsetWidth;
+      onboarding.classList.add("onboarding-shake");
+      return;
+    }
+
+    if (!password) {
+      errorBox.textContent = t("onboarding_password_required");
+      errorBox.classList.remove("hidden");
+      passwordInput.focus();
+
+      onboarding.classList.remove("onboarding-shake");
+      void onboarding.offsetWidth;
+      onboarding.classList.add("onboarding-shake");
+      return;
+    }
+
+   const button = document.getElementById("complete-onboarding-btn");
+
+button.disabled = true;
+
+try {
+  const response = await fetch(AUTH + "/onboarding", {
+    method: "PUT",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      username,
+      password,
+      educationLevel: document.getElementById("onboarding-level").value
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || t("onboarding_save_error"));
+  }
+
+  state.user = data.user;
+
+  closeModal();
+  applyTranslations();
+  renderAll();
+
+  showToast(t("onboarding_saved"));
+} catch (error) {
+  errorBox.textContent = error.message;
+  errorBox.classList.remove("hidden");
+
+  onboarding.classList.remove("onboarding-shake");
+  void onboarding.offsetWidth;
+  onboarding.classList.add("onboarding-shake");
+} finally {
+  button.disabled = false;
+}
+  });
 function getStudyPointsTransactionDescription(transaction) {
   const type = transaction.type;
   const rawDescription = transaction.description || "";
@@ -574,7 +715,26 @@ function openModal(id) {
 }
 function closeModal() { overlay.classList.add("hidden"); }
 document.querySelectorAll("[data-close-modal]").forEach((b) => b.addEventListener("click", closeModal));
-overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
+overlay.addEventListener("click", e => {
+  if (e.target !== overlay) return;
+
+  const onboarding = document.getElementById("modal-onboarding");
+
+  if (onboarding && !onboarding.classList.contains("hidden")) {
+    const errorBox = document.getElementById("onboarding-error");
+
+    errorBox.textContent = t("onboarding_password_required");
+    errorBox.classList.remove("hidden");
+
+    onboarding.classList.remove("onboarding-shake");
+    void onboarding.offsetWidth;
+    onboarding.classList.add("onboarding-shake");
+
+    return;
+  }
+
+  closeModal();
+});
 
 /* ================= SETTINGS ================= */
 function openSettingsModal() {
@@ -2553,7 +2713,16 @@ function renderAll() {
   const summaryTab = document.getElementById("tab-summary");
   if (summaryTab.classList.contains("active")) renderSummaryTab();
 }
+const params = new URLSearchParams(window.location.search);
 
+if (params.get("authError") === "invalid_alpha") {
+  const errorBox = document.getElementById("oauth-error");
+
+  errorBox.textContent = t("alpha_code_invalid");
+  errorBox.classList.remove("hidden");
+
+  window.history.replaceState({}, "", window.location.pathname);
+}
 (async function init() {
   consumeGoogleRedirectToken();
   if (token) {
