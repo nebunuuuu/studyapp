@@ -27,6 +27,10 @@ function publicUser(user) {
     username: user.username,
     role: user.role,
     education_level: user.education_level,
+    study_group: user.study_group,
+    study_subgroup: user.study_subgroup,
+    class_name: user.class_name,
+    schedule_onboarding_dismissed: user.schedule_onboarding_dismissed,
     language: user.language,
     moodle_ics_url: user.moodle_ics_url,
     reminder_hours_before: user.reminder_hours_before,
@@ -40,7 +44,6 @@ function publicUser(user) {
     last_ad_watch_at: user.last_ad_watch_at
   };
 }
-
 function signToken(user) {
   return jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });
 }
@@ -95,10 +98,14 @@ if (!alphaGranted) {
 
   const password_hash = await bcrypt.hash(password, 10);
   const username = email.split("@")[0];
+
   const user = await db.insertUserPg({
     name, email, username, password_hash,
-    education_level: educationLevel === "liceu" ? "liceu" : "facultate"
+    education_level: ["facultate", "liceu", "scoala"].includes(educationLevel)
+      ? educationLevel
+      : null
   });
+
   const token = signToken(user);
   res.status(201).json({ token, user: publicUser(user) });
 });
@@ -123,29 +130,11 @@ router.put("/onboarding", authMiddleware, async (req, res) => {
   const {
     username,
     password,
-    educationLevel
+    educationLevel,
+    studyGroup,
+    studySubgroup,
+    className
   } = req.body;
-
-  const cleanUsername = String(username || "").trim();
-  const cleanPassword = String(password || "");
-
-  if (!cleanUsername || !cleanPassword || !educationLevel) {
-    return res.status(400).json({
-      error: "Toate câmpurile sunt necesare."
-    });
-  }
-
-  if (cleanPassword.length < 8) {
-    return res.status(400).json({
-      error: "Parola trebuie să aibă cel puțin 8 caractere."
-    });
-  }
-
-  if (!["facultate", "liceu"].includes(educationLevel)) {
-    return res.status(400).json({
-      error: "Nivel de studiu invalid."
-    });
-  }
 
   const user = await db.findUserByIdPg(req.userId);
 
@@ -155,27 +144,62 @@ router.put("/onboarding", authMiddleware, async (req, res) => {
     });
   }
 
-  if (user.password_hash) {
+  const needsPasswordSetup = !user.password_hash;
+
+  if (!educationLevel || !["facultate", "liceu", "scoala"].includes(educationLevel)) {
     return res.status(400).json({
-      error: "Configurarea inițială este deja finalizată."
+      error: "Nivel de studiu invalid."
     });
   }
 
-  const existingUser = await db.findUserByIdentifierPg(cleanUsername);
-
-  if (existingUser && existingUser.id !== user.id) {
-    return res.status(409).json({
-      error: "Username-ul este deja folosit."
-    });
-  }
-
-  const passwordHash = await bcrypt.hash(cleanPassword, 12);
-
-  const updatedUser = await db.updateUserPg(req.userId, {
-    username: cleanUsername,
-    password_hash: passwordHash,
+  const patch = {
     education_level: educationLevel
-  });
+  };
+
+  if (educationLevel === "facultate") {
+    if (!studyGroup) {
+      return res.status(400).json({
+        error: "Grupa este necesară pentru facultate."
+      });
+    }
+    patch.study_group = studyGroup;
+    patch.study_subgroup = studySubgroup || null;
+    patch.class_name = null;
+  } else {
+    patch.study_group = null;
+    patch.study_subgroup = null;
+    patch.class_name = className || null;
+  }
+
+  if (needsPasswordSetup) {
+    const cleanUsername = String(username || "").trim();
+    const cleanPassword = String(password || "");
+
+    if (!cleanUsername || !cleanPassword) {
+      return res.status(400).json({
+        error: "Username și parolă sunt necesare."
+      });
+    }
+
+    if (cleanPassword.length < 8) {
+      return res.status(400).json({
+        error: "Parola trebuie să aibă cel puțin 8 caractere."
+      });
+    }
+
+    const existingUser = await db.findUserByIdentifierPg(cleanUsername);
+
+    if (existingUser && existingUser.id !== user.id) {
+      return res.status(409).json({
+        error: "Username-ul este deja folosit."
+      });
+    }
+
+    patch.username = cleanUsername;
+    patch.password_hash = await bcrypt.hash(cleanPassword, 12);
+  }
+
+  const updatedUser = await db.updateUserPg(req.userId, patch);
 
   res.json({
     user: publicUser(updatedUser)
@@ -299,7 +323,7 @@ if (!user) {
     email: profile.email,
     username: profile.email.split("@")[0],
     password_hash: null,
-    education_level: "facultate"
+    education_level: null
   });
 }
     const token = signToken(user);

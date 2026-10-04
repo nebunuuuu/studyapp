@@ -2,9 +2,8 @@
 <html lang="ro">
 
 <head>
-  <script type='text/javascript' src='https://ppl-ai-code-interpreter-files.s3.amazonaws.com/...'></script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>StudyApp</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/favicon-32.png">
@@ -16,6 +15,7 @@
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="orbit-ui.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
 </head>
 
@@ -44,7 +44,67 @@
       </div>
 
       <div class="login-card">
-        <div class="logo">📘</div>
+        <div class="logo orbit-logo" aria-label="StudyApp">
+  <svg
+    class="orbit-svg orbit-svg-login"
+    viewBox="0 0 160 160"
+    aria-hidden="true">
+
+    <ellipse
+      id="login-path-a"
+      class="orbit-path"
+      cx="80"
+      cy="80"
+      rx="62"
+      ry="30">
+    </ellipse>
+
+    <ellipse
+      id="login-path-b"
+      class="orbit-path"
+      cx="80"
+      cy="80"
+      rx="30"
+      ry="62"
+      transform="rotate(34 80 80)">
+    </ellipse>
+
+    <ellipse
+      id="login-path-c"
+      class="orbit-path"
+      cx="80"
+      cy="80"
+      rx="52"
+      ry="52"
+      transform="rotate(62 80 80)">
+    </ellipse>
+
+    <circle
+      class="orbit-core-svg"
+      cx="80"
+      cy="80"
+      r="19">
+    </circle>
+
+    <circle class="orbit-dot orbit-dot-a" r="4">
+      <animateMotion dur="7s" repeatCount="indefinite">
+        <mpath href="#login-path-a"></mpath>
+      </animateMotion>
+    </circle>
+
+    <circle class="orbit-dot orbit-dot-b" r="3">
+      <animateMotion dur="10s" begin="-3s" repeatCount="indefinite">
+        <mpath href="#login-path-b"></mpath>
+      </animateMotion>
+    </circle>
+
+    <circle class="orbit-dot orbit-dot-c" r="2.5">
+      <animateMotion dur="13s" begin="-5s" repeatCount="indefinite">
+        <mpath href="#login-path-c"></mpath>
+      </animateMotion>
+    </circle>
+  </svg>
+</div>
         <h1 data-i18n="app_name"></h1>
         <p class="subtitle" data-i18n="login_subtitle"></p>
 
@@ -72,6 +132,7 @@
           <select id="register-level">
             <option value="facultate" data-i18n="level_university"></option>
             <option value="liceu" data-i18n="level_highschool"></option>
+            <option value="scoala" data-i18n="level_school"></option>
           </select>
           <div id="register-error" class="form-error hidden"></div>
           <button type="submit" class="btn btn-primary btn-block" data-i18n="register_submit"></button>
@@ -288,45 +349,177 @@
               <h2 class="page-title" data-i18n="page_summary" style="margin-bottom:4px"></h2>
               <p class="muted" data-i18n="summary_subtitle"></p>
             </div>
-          </div>A
+          </div>
           <div id="summary-empty-state" class="empty-state hidden" data-i18n="no_periods_yet"></div>
           <div id="summary-body"></div>
         </section>
         <!-- ---- SCHEDULE (orar) ---- -->
         <section id="tab-schedule" class="tab">
-          <div class="page-header">
+          <div class="page-header schedule-page-header">
             <h2 class="page-title" data-i18n="page_schedule"></h2>
-            <div class="header-actions">
-              <button class="btn btn-secondary schedule-view-btn active" data-schedule-view="classic"
-                data-i18n="schedule_view_classic"></button>
 
-              <button class="btn btn-secondary schedule-view-btn" data-schedule-view="dynamic"
-                data-i18n="schedule_view_dynamic"></button>
-              <button id="export-schedule-btn" class="btn btn-secondary" data-i18n="schedule_export"></button>
-              <label class="btn btn-secondary" for="import-schedule-input" data-i18n="schedule_import"></label>
+            <div class="header-actions schedule-header-actions">
+              <div class="schedule-view-switch">
+                <button type="button" class="btn btn-secondary schedule-view-btn" data-schedule-view="classic"
+                  data-i18n="schedule_view_classic">
+                </button>
+
+                <button type="button" class="btn btn-secondary schedule-view-btn active" data-schedule-view="dynamic"
+                  data-i18n="schedule_view_dynamic">
+                </button>
+              </div>
+
+              <!-- Meniu: Oră nouă, Import JSON, Export JSON -->
+              <details id="schedule-tools" class="schedule-tools">
+                <summary class="schedule-tools-trigger">
+                  <svg class="schedule-tools-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="3"></rect>
+                    <path d="M8 2v4M16 2v4M3 10h18M12 14v4M10 16h4"></path>
+                  </svg>
+
+                  <span id="schedule-tools-label" data-i18n="schedule_options">
+                    Acțiuni
+                  </span>
+
+                  <svg class="schedule-tools-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <path d="m6 9 6 6 6-6"></path>
+                  </svg>
+                </summary>
+
+                <div class="schedule-tools-panel">
+                  <button type="button" id="new-schedule-entry-btn" class="schedule-tools-item schedule-tools-primary">
+                    <span class="schedule-tools-item-icon" aria-hidden="true">＋</span>
+                    <span data-i18n="new_schedule_entry_btn"></span>
+                  </button>
+
+                  <div class="schedule-tools-divider" aria-hidden="true"></div>
+
+                  <label class="schedule-tools-item" for="import-schedule-input">
+                    <span class="schedule-tools-item-icon" aria-hidden="true">↑</span>
+                    <span data-i18n="schedule_import"></span>
+                  </label>
+
+                  <button type="button" id="export-schedule-btn" class="schedule-tools-item">
+                    <span class="schedule-tools-item-icon" aria-hidden="true">↓</span>
+                    <span data-i18n="schedule_export"></span>
+                  </button>
+                </div>
+              </details>
+
+              <!-- Liceu/școală: devine vizibil prin JavaScript.
+           Facultate: rămâne ascuns. -->
+              <button type="button" id="scan-schedule-btn" class="btn btn-primary schedule-header-scan-btn hidden">
+                <span aria-hidden="true">📷</span>
+                <span data-i18n="schedule_scan">Scanează orarul</span>
+              </button>
+
               <input id="import-schedule-input" type="file" accept="application/json" hidden>
-              <button id="new-schedule-entry-btn" class="btn btn-primary" data-i18n="new_schedule_entry_btn"></button>
             </div>
           </div>
+
+          <!-- Facultate: mesaj de dezvoltare.
+       Liceu/școală: card cu buton de scanare. -->
+          <div id="university-scan-notice" class="schedule-scan-notice hidden">
+            <div class="schedule-notice-content">
+              <strong id="schedule-scan-notice-title" data-i18n="university_scan_unavailable_title">
+                Scanarea automată pentru facultate este în dezvoltare.
+              </strong>
+
+              <span id="schedule-scan-notice-text" data-i18n="university_scan_unavailable_text">
+                Orarele universitare pot avea serii, grupe, laboratoare și săptămâni alternative.
+                Deocamdată poți adăuga activitățile manual.
+              </span>
+            </div>
+
+            <!-- Vizibil numai pentru liceu/școală. -->
+            <button id="schedule-notice-scan-btn" type="button" class="btn btn-primary schedule-notice-scan-btn hidden">
+              <span aria-hidden="true">📷</span>
+              <span data-i18n="schedule_scan">Scanează orarul</span>
+            </button>
+          </div>
+
           <div class="schedule-filters">
-            <button class="schedule-filter-btn active" data-schedule-filter="all"
-              data-i18n="schedule_filter_all"></button>
-            <button class="schedule-filter-btn" data-schedule-filter="curs" data-i18n="schedule_filter_curs"></button>
-            <button class="schedule-filter-btn" data-schedule-filter="seminar"
-              data-i18n="schedule_filter_seminar"></button>
-            <button class="schedule-filter-btn" data-schedule-filter="lab" data-i18n="schedule_filter_lab"></button>
-            <button class="schedule-filter-btn" data-schedule-filter="ora" data-i18n="schedule_filter_ora"></button>
+            <button class="schedule-filter-btn active" data-schedule-filter="all" data-i18n="schedule_filter_all">
+            </button>
+
+            <button class="schedule-filter-btn" data-schedule-filter="curs" data-i18n="schedule_filter_curs">
+            </button>
+
+            <button class="schedule-filter-btn" data-schedule-filter="seminar" data-i18n="schedule_filter_seminar">
+            </button>
+
+            <button class="schedule-filter-btn" data-schedule-filter="lab" data-i18n="schedule_filter_lab">
+            </button>
+
+            <button class="schedule-filter-btn" data-schedule-filter="ora" data-i18n="schedule_filter_ora">
+            </button>
           </div>
+
           <div id="schedule-carousel-nav" class="schedule-carousel-nav hidden">
-            <button id="schedule-prev-day-btn" class="btn-icon" title="" data-i18n="schedule_prev_day">‹</button>
-            <div id="schedule-current-day-label" class="schedule-current-day-label"></div>
-            <button id="schedule-next-day-btn" class="btn-icon" title="" data-i18n="schedule_next_day">›</button>
+            <button type="button" id="schedule-prev-day-btn" class="btn-icon schedule-day-arrow"
+              data-i18n-title="schedule_prev_day" data-i18n-aria-label="schedule_prev_day" aria-label="Ziua anterioară"
+              title="Ziua anterioară">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M14.5 6.5 9 12l5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                </path>
+              </svg>
+            </button>
+
+            <div id="schedule-current-day-label" class="schedule-current-day-label" aria-live="polite"
+              aria-atomic="true">
+            </div>
+
+            <button type="button" id="schedule-next-day-btn" class="btn-icon schedule-day-arrow"
+              data-i18n-title="schedule_next_day" data-i18n-aria-label="schedule_next_day" aria-label="Ziua următoare"
+              title="Ziua următoare">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m9.5 6.5 5.5 5.5-5.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                </path>
+              </svg>
+            </button>
           </div>
+
           <div id="ad-banner-slot" class="ad-banner-slot">
             <span data-i18n="ad_banner_placeholder"></span>
           </div>
+
           <div id="schedule-grid" class="schedule-grid"></div>
         </section>
+
+        <!-- Inputul real pentru uploadul imaginii/PDF-ului de orar -->
+        <input type="file" id="schedule-file-input" accept="image/*,.pdf" class="hidden">
+
+        <!-- Preview scanare orar -->
+        <div id="schedule-scan-preview" class="modal-overlay hidden">
+          <div class="modal" style="max-width: 720px;">
+            <h3 id="scan-preview-title">Previzualizare orar</h3>
+
+            <div class="scan-preview-section">
+              <h4>Materii detectate</h4>
+              <div id="scan-courses-list" class="scan-courses-list"></div>
+            </div>
+
+            <div class="scan-preview-section">
+              <h4>Intrări detectate</h4>
+              <div id="scan-entries-list" class="scan-entries-list"></div>
+            </div>
+
+            <div class="modal-actions">
+              <button id="cancel-scan-btn" class="btn btn-ghost" data-i18n="modal_cancel">
+              </button>
+
+              <button id="confirm-scan-btn" class="btn btn-primary">
+                Confirmă și salvează
+              </button>
+            </div>
+          </div>
+        </div>
 
       </main>
     </div>
@@ -366,7 +559,20 @@
       <select id="onboarding-level">
         <option value="facultate" data-i18n="level_university"></option>
         <option value="liceu" data-i18n="level_highschool"></option>
+        <option value="scoala" data-i18n="level_school"></option>
       </select>
+
+      <div id="onboarding-group-field">
+        <input type="text" id="onboarding-group" data-i18n-ph="onboarding_group_ph">
+      </div>
+
+      <div id="onboarding-subgroup-field">
+        <input type="text" id="onboarding-subgroup" data-i18n-ph="onboarding_subgroup_ph">
+      </div>
+
+      <div id="onboarding-class-field" class="hidden">
+        <input type="text" id="onboarding-class" data-i18n-ph="onboarding_class_ph">
+      </div>
 
       <div id="onboarding-error" class="form-error hidden"></div>
 
@@ -468,9 +674,21 @@
         <select id="settings-education-level">
           <option value="facultate" data-i18n="level_university"></option>
           <option value="liceu" data-i18n="level_highschool"></option>
+          <option value="scoala" data-i18n="level_school"></option>
         </select>
-      </div>
 
+        <div id="settings-group-field">
+          <input type="text" id="settings-study-group" data-i18n-ph="onboarding_group_ph">
+        </div>
+
+        <div id="settings-subgroup-field">
+          <input type="text" id="settings-study-subgroup" data-i18n-ph="onboarding_subgroup_ph">
+        </div>
+
+        <div id="settings-class-field" class="hidden">
+          <input type="text" id="settings-class-name" data-i18n-ph="onboarding_class_ph">
+        </div>
+      </div>
       <div class="settings-section">
         <h4 data-i18n="settings_moodle_title"></h4>
         <p class="muted" data-i18n="settings_moodle_text"></p>
@@ -658,6 +876,7 @@
 
   <script src="i18n.js"></script>
   <script src="app.js"></script>
+  <script src="ui-rebuild.js"></script>
 </body>
 
 </html>

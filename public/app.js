@@ -23,7 +23,7 @@ let state = {
 let token = localStorage.getItem("studyapp_token") || null;
 let activeGradesCourseId = null;
 let activeCategoryIdForGrade = null;
-let activeScheduleView = "classic";
+let activeScheduleView = "dynamic";
 let activeScheduleCarouselOffset = 0;
 let gradesChartInstance = null;
 
@@ -95,6 +95,13 @@ function applyTranslations() {
   });
   document.querySelectorAll("[data-i18n-ph]").forEach((el) => {
     el.placeholder = t(el.dataset.i18nPh);
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    el.setAttribute("title", t(el.dataset.i18nTitle));
+  });
+
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.dataset.i18nAriaLabel));
   });
   const langLabel = window.currentLang === "en" ? "🌐 RO" : "🌐 EN";
   const loginToggle = document.getElementById("lang-toggle-login");
@@ -285,20 +292,20 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
   const email = document.getElementById("register-email").value.trim();
   const password = document.getElementById("register-password").value;
   const accessCode = document
-  .getElementById("register-access-code")
-  .value
-  .trim();
+    .getElementById("register-access-code")
+    .value
+    .trim();
   const educationLevel = document.getElementById("register-level").value;
   const errBox = document.getElementById("register-error");
   errBox.classList.add("hidden");
   try {
-   const data = await authApi("/register", {
-  name,
-  email,
-  password,
-  educationLevel,
-  accessCode
-});
+    const data = await authApi("/register", {
+      name,
+      email,
+      password,
+      educationLevel,
+      accessCode
+    });
     token = data.token;
     localStorage.setItem("studyapp_token", token);
     state.user = data.user;
@@ -335,11 +342,11 @@ document.getElementById("google-login-btn").addEventListener("click", async () =
     const data = await response.json();
 
     if (!response.ok) {
-     throw new Error(
-  data.error === "alpha_code_invalid"
-    ? t("alpha_code_invalid")
-    : data.error || t("alpha_code_invalid")
-);
+      throw new Error(
+        data.error === "alpha_code_invalid"
+          ? t("alpha_code_invalid")
+          : data.error || t("alpha_code_invalid")
+      );
     }
 
     window.location.href = data.url;
@@ -396,23 +403,23 @@ async function bootstrapApp() {
   }
 
   const [
-  courses,
-  notes,
-  tasks,
-  wallet,
-  shopCatalog,
-  spPackages,
-  proPlans,
-  scheduleEntries
-] = await Promise.all([
+    courses,
+    notes,
+    tasks,
+    wallet,
+    shopCatalog,
+    spPackages,
+    proPlans,
+    scheduleEntries
+  ] = await Promise.all([
     api("GET", "/courses"),
     api("GET", "/notes"),
     api("GET", "/tasks"),
     api("GET", "/wallet"),
     api("GET", "/shop/catalog"),
- api("GET", "/wallet/packages"),
-api("GET", "/wallet/pro-plans"),
-api("GET", "/schedule")
+    api("GET", "/wallet/packages"),
+    api("GET", "/wallet/pro-plans"),
+    api("GET", "/schedule")
   ]);
 
   state.courses = courses;
@@ -426,24 +433,25 @@ api("GET", "/schedule")
 
   loginScreen.classList.add("hidden");
   appScreen.classList.remove("hidden");
-if (state.user.needs_onboarding) {
-  const savedLang = localStorage.getItem("studyapplang");
+  if (state.user.needs_onboarding) {
+    const savedLang = localStorage.getItem("studyapplang");
 
-  if (savedLang) {
-    window.currentLang = savedLang;
+    if (savedLang) {
+      window.currentLang = savedLang;
+    }
+
+    applyTranslations();
+
+    const usernameInput = document.getElementById("onboarding-username");
+
+    usernameInput.value =
+      state.user.username ||
+      state.user.email?.split("@")[0] ||
+      "";
+    toggleOnboardingFields(document.getElementById("onboarding-level").value);
+
+    openModal("modal-onboarding");
   }
-
-  applyTranslations();
-
-  const usernameInput = document.getElementById("onboarding-username");
-
-  usernameInput.value =
-    state.user.username ||
-    state.user.email?.split("@")[0] ||
-    "";
-
-  openModal("modal-onboarding");
-}
 
   applyTranslations();
   populatePeriodOptions();
@@ -457,6 +465,7 @@ if (state.user.needs_onboarding) {
   applyAvatarFrame(wallet.activeFrame);
   updateWalletPill();
 
+  updateScheduleScanAvailability();
   renderAll();
   requestNotificationPermission();
 }
@@ -495,47 +504,47 @@ document
       return;
     }
 
-   const button = document.getElementById("complete-onboarding-btn");
+    const button = document.getElementById("complete-onboarding-btn");
 
-button.disabled = true;
+    button.disabled = true;
 
-try {
-  const response = await fetch(AUTH + "/onboarding", {
-    method: "PUT",
-    headers: {
-      ...authHeaders(),
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      username,
-      password,
-      educationLevel: document.getElementById("onboarding-level").value
-    })
-  });
+    try {
+      const response = await fetch(AUTH + "/onboarding", {
+        method: "PUT",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username,
+          password,
+          educationLevel: document.getElementById("onboarding-level").value
+        })
+      });
 
-  const data = await response.json();
+      const data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(data.error || t("onboarding_save_error"));
-  }
+      if (!response.ok) {
+        throw new Error(data.error || t("onboarding_save_error"));
+      }
 
-  state.user = data.user;
+      state.user = data.user;
 
-  closeModal();
-  applyTranslations();
-  renderAll();
+      closeModal();
+      applyTranslations();
+      renderAll();
 
-  showToast(t("onboarding_saved"));
-} catch (error) {
-  errorBox.textContent = error.message;
-  errorBox.classList.remove("hidden");
+      showToast(t("onboarding_saved"));
+    } catch (error) {
+      errorBox.textContent = error.message;
+      errorBox.classList.remove("hidden");
 
-  onboarding.classList.remove("onboarding-shake");
-  void onboarding.offsetWidth;
-  onboarding.classList.add("onboarding-shake");
-} finally {
-  button.disabled = false;
-}
+      onboarding.classList.remove("onboarding-shake");
+      void onboarding.offsetWidth;
+      onboarding.classList.add("onboarding-shake");
+    } finally {
+      button.disabled = false;
+    }
   });
 function getStudyPointsTransactionDescription(transaction) {
   const type = transaction.type;
@@ -591,7 +600,7 @@ async function loadStudyPointsHistory() {
     </div>
   `;
 
-   try {
+  try {
     console.log("History request started");
 
     const result = await Promise.race([
@@ -660,8 +669,8 @@ async function loadStudyPointsHistory() {
 
             <span class="shop-history-balance">
               ${t("shop_history_balance", {
-                n: transaction.balance_after
-              })}
+        n: transaction.balance_after
+      })}
             </span>
           </div>
         </div>
@@ -692,7 +701,19 @@ function switchTab(name) {
   if (name === "tasks") renderTasks();
   if (name === "grades") renderGradesTab();
   if (name === "summary") renderSummaryTab();
-  if (name === "schedule") renderSchedule();
+  if (name === "schedule") {
+    activeScheduleView = "dynamic";
+    dynamicScheduleDay = new Date().getDay();
+
+    document.querySelectorAll("[data-schedule-view]").forEach((button) => {
+      button.classList.toggle(
+        "active",
+        button.dataset.scheduleView === "dynamic"
+      );
+    });
+
+    renderSchedule();
+  }
 }
 
 /* ================= SWIPE GESTURES (mobil/tabletă) ================= */
@@ -787,7 +808,7 @@ function openSettingsModal() {
     .forEach((cb) => {
       cb.checked = activeHours.includes(Number(cb.value));
     });
-
+  toggleSettingsFields(state.user.education_level || "facultate");
   openModal("modal-settings");
 }
 document.getElementById("settings-btn").addEventListener("click", openSettingsModal);
@@ -801,11 +822,11 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
   const educationLevel = document.getElementById("settings-education-level").value;
 
   const payload = {
-  moodleIcsUrl,
-  reminderHoursBefore,
-  language,
-  educationLevel
-};
+    moodleIcsUrl,
+    reminderHoursBefore,
+    language,
+    educationLevel
+  };
 
   try {
     const updated = await api("PUT", "/settings", payload);
@@ -813,13 +834,34 @@ document.getElementById("save-settings-btn").addEventListener("click", async () 
     state.user.reminder_hours_before = updated.reminder_hours_before;
     state.user.education_level = updated.education_level;
     state.user.language = updated.language;
+    updateScheduleScanAvailability();
     closeModal();
     if (window.currentLang !== language) setLang(language);
     else populatePeriodOptions();
     showToast(t("toast_settings_saved"));
   } catch (err) { showToast(err.message); }
 });
+function toggleOnboardingFields(level) {
+  const isUniversity = level === "facultate";
+  document.getElementById("onboarding-group-field").classList.toggle("hidden", !isUniversity);
+  document.getElementById("onboarding-subgroup-field").classList.toggle("hidden", !isUniversity);
+  document.getElementById("onboarding-class-field").classList.toggle("hidden", isUniversity);
+}
 
+document.getElementById("onboarding-level").addEventListener("change", (e) => {
+  toggleOnboardingFields(e.target.value);
+});
+
+function toggleSettingsFields(level) {
+  const isUniversity = level === "facultate";
+  document.getElementById("settings-group-field").classList.toggle("hidden", !isUniversity);
+  document.getElementById("settings-subgroup-field").classList.toggle("hidden", !isUniversity);
+  document.getElementById("settings-class-field").classList.toggle("hidden", isUniversity);
+}
+
+document.getElementById("settings-education-level").addEventListener("change", (e) => {
+  toggleSettingsFields(e.target.value);
+});
 /* ================= WALLET (StudyPoints) ================= */
 function updateWalletPill() {
   document.getElementById("wallet-balance").textContent = state.wallet ? state.wallet.balance : "—";
@@ -1153,6 +1195,50 @@ function startAdSimulation() {
     }
   }, 1000);
 }
+function updateScheduleScanAvailability() {
+  const headerScanButton = document.getElementById("scan-schedule-btn");
+  const notice = document.getElementById("university-scan-notice");
+  const noticeScanButton = document.getElementById("schedule-notice-scan-btn");
+  const noticeTitle = document.getElementById("schedule-scan-notice-title");
+  const noticeText = document.getElementById("schedule-scan-notice-text");
+
+  if (
+    !headerScanButton ||
+    !notice ||
+    !noticeScanButton ||
+    !state.user
+  ) {
+    return;
+  }
+
+  const educationLevel = String(
+    state.user.educationLevel ||
+    state.user.education_level ||
+    ""
+  ).trim().toLowerCase();
+
+  const isUniversity = educationLevel === "facultate";
+
+  if (isUniversity) {
+    // Facultate: scanarea este indisponibilă.
+    headerScanButton.classList.add("hidden");
+    notice.classList.remove("hidden");
+    noticeScanButton.classList.add("hidden");
+
+    noticeTitle.dataset.i18n = "university_scan_unavailable_title";
+    noticeText.dataset.i18n = "university_scan_unavailable_text";
+  } else {
+    // Liceu / școală: scanarea devine disponibilă în două locuri.
+    headerScanButton.classList.remove("hidden");
+    notice.classList.remove("hidden");
+    noticeScanButton.classList.remove("hidden");
+
+    noticeTitle.dataset.i18n = "schedule_scan_available_title";
+    noticeText.dataset.i18n = "schedule_scan_available_text";
+  }
+
+  applyTranslations();
+}
 /* ================= SCHEDULE (orar) ================= */
 const DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const DAY_KEYS = {
@@ -1207,13 +1293,12 @@ function buildSingleDayCard(day, highlighted = false) {
         <div class="schedule-day-date">${dateLabel}${day === today ? ` • ${t("schedule_weekday_today")}` : ""}</div>
       </div>
       <div class="schedule-entry-list">
-        ${
-          entries.length === 0
-            ? `<div class="schedule-empty-day">${t("schedule_empty_preview") || t("schedule_empty_day")}</div>`
-            : entries.map((e) => {
-                const course = state.courses.find((c) => c.id === e.course_id);
-                const bg = e.color || course?.color || "#5b5bf0";
-                return `
+        ${entries.length === 0
+      ? `<div class="schedule-empty-day">${t("schedule_empty_preview") || t("schedule_empty_day")}</div>`
+      : entries.map((e) => {
+        const course = state.courses.find((c) => c.id === e.course_id);
+        const bg = e.color || course?.color || "#5b5bf0";
+        return `
                   <div class="schedule-entry" data-entry="${e.id}" style="background:${bg}">
                     <div class="schedule-entry-title">${e.title || course?.name || "—"}</div>
                     <div class="schedule-entry-time">${e.startTime} – ${e.endTime}</div>
@@ -1223,8 +1308,8 @@ function buildSingleDayCard(day, highlighted = false) {
                       ${e.type ? `· ${e.type}` : ""}
                     </div>
                   </div>`;
-              }).join("")
-        }
+      }).join("")
+    }
       </div>
     </div>
   `;
@@ -1297,20 +1382,17 @@ function renderSchedule() {
 
             <div class="schedule-entry-meta">
               ${entry.room ? `📍 ${entry.room}` : ""}
-              ${
-                entry.parity !== "all"
-                  ? ` · ${
-                      entry.parity === "odd"
-                        ? t("schedule_parity_odd")
-                        : t("schedule_parity_even")
-                    }`
-                  : ""
-              }
-              ${
-                entry.type && !isSchoolSchedule()
-                  ? ` · ${entry.type}`
-                  : ""
-              }
+              ${entry.parity !== "all"
+            ? ` · ${entry.parity === "odd"
+              ? t("schedule_parity_odd")
+              : t("schedule_parity_even")
+            }`
+            : ""
+          }
+              ${entry.type && !isSchoolSchedule()
+            ? ` · ${entry.type}`
+            : ""
+          }
             </div>
           </div>
         `;
@@ -1337,9 +1419,8 @@ function renderSchedule() {
 
     return `
       <div
-        class="schedule-day-card ${
-          highlighted ? "today-highlight schedule-dynamic-card" : ""
-        }"
+        class="schedule-day-card ${highlighted ? "today-highlight schedule-dynamic-card" : ""
+      }"
         data-day="${day}"
       >
         <div class="schedule-day-head">
@@ -1349,22 +1430,20 @@ function renderSchedule() {
 
           <div class="schedule-day-date">
             ${dateLabel}
-            ${
-              day === today
-                ? ` · ${t("schedule_weekday_today")}`
-                : ""
-            }
+            ${day === today
+        ? ` · ${t("schedule_weekday_today")}`
+        : ""
+      }
           </div>
         </div>
 
         <div class="schedule-entry-list">
-          ${
-            dayEntries
-              ? dayEntries
-              : `<div class="schedule-empty-day">
+          ${dayEntries
+        ? dayEntries
+        : `<div class="schedule-empty-day">
                   ${t("schedule_empty_day")}
                 </div>`
-          }
+      }
         </div>
       </div>
     `;
@@ -1398,8 +1477,7 @@ function renderSchedule() {
     dynamicScheduleDay = dynamicScheduleDay ?? today;
 
     if (currentDayLabel) {
-      currentDayLabel.textContent =
-        `${formatFullDayLabel(dynamicScheduleDay)} · ${todayDateLabel()}`;
+      currentDayLabel.textContent = formatFullDayLabel(dynamicScheduleDay);
     }
 
     const dynamicCard = buildDayCard(
@@ -1480,7 +1558,7 @@ function openScheduleModal(entryId = null) {
     }
   };
   applyScheduleTypeVisibility();
-openModal("modal-schedule");
+  openModal("modal-schedule");
 
 }
 
@@ -2764,4 +2842,248 @@ if (params.get("authError") === "invalid_alpha") {
     loginScreen.classList.remove("hidden");
     appScreen.classList.add("hidden");
   }
+})();
+/* ================= SCHEDULE SCAN (AI) ================= */
+const scanBtn = document.getElementById("scan-schedule-btn");
+const fileInput = document.getElementById("schedule-file-input");
+const previewModal = document.getElementById("schedule-scan-preview");
+const coursesList = document.getElementById("scan-courses-list");
+const entriesList = document.getElementById("scan-entries-list");
+const cancelScanBtn = document.getElementById("cancel-scan-btn");
+const confirmScanBtn = document.getElementById("confirm-scan-btn");
+const noticeScanBtn = document.getElementById("schedule-notice-scan-btn");
+
+noticeScanBtn?.addEventListener("click", () => {
+  scanBtn?.click();
+});
+
+let scanPreviewData = null;
+
+if (scanBtn && fileInput && previewModal) {
+  scanBtn.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const isUniversity = state.user?.education_level === "facultate";
+
+    if (isUniversity) {
+      const group = state.user?.study_group || prompt("Introdu grupa ta (ex: 2202A):");
+      if (!group) {
+        showToast("Grupa este necesară pentru orarul de facultate.");
+        return;
+      }
+      formData.append("studyGroup", group);
+      if (state.user?.study_subgroup) {
+        formData.append("studySubgroup", state.user.study_subgroup);
+      }
+    }
+
+    try {
+      const res = await fetch(`${API}/schedule/scan/preview`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("studyapp_token")}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Eroare la scanare.");
+      }
+
+      scanPreviewData = data;
+      renderScanPreview(data);
+      previewModal.classList.remove("hidden");
+    } catch (err) {
+      showToast(err.message || "Eroare la scanare.");
+    } finally {
+      fileInput.value = "";
+    }
+  });
+
+  cancelScanBtn.addEventListener("click", () => {
+    previewModal.classList.add("hidden");
+    scanPreviewData = null;
+  });
+
+  confirmScanBtn.addEventListener("click", async () => {
+    if (!scanPreviewData) return;
+
+    const payload = collectEditedScanData();
+
+    try {
+      const res = await fetch("/api/schedule/scan/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("studyapp_token")}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.error || "Eroare la salvare.");
+      }
+
+      previewModal.classList.add("hidden");
+      scanPreviewData = null;
+      showToast("Orarul a fost salvat.");
+      renderSchedule();
+    } catch (err) {
+      showToast(err.message || "Eroare la salvare.");
+    }
+  });
+}
+
+function renderScanPreview(data) {
+  coursesList.innerHTML = data.courses.map((c, idx) => `
+    <div class="scan-course-item" data-idx="${idx}">
+      <label>Nume materie</label>
+      <input type="text" class="scan-course-name" value="${escapeHtml(c.name)}">
+      <label>Profesor</label>
+      <input type="text" class="scan-course-prof" value="${escapeHtml(c.professor || "")}" placeholder="Opțional">
+      <label>Culoare</label>
+      <input type="color" class="scan-course-color" value="${escapeHtml(c.color)}">
+    </div>
+  `).join("");
+
+  const dayNames = window.currentLang === "en"
+    ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    : ["Dum", "Lun", "Mar", "Mie", "Joi", "Vin", "Sâm"];
+
+  const typeOptions = ["curs", "laborator", "seminar", "proiect", "altul"];
+  const parityOptions = ["saptamanal", "saptamana-impara", "saptamana-pare"];
+
+  entriesList.innerHTML = data.entries.map((e, idx) => `
+    <div class="scan-entry-item" data-idx="${idx}">
+      <div class="full-width">
+        <label>Materie</label>
+        <select class="scan-entry-course">
+          ${data.courses.map((c, i) => `
+            <option value="${i}" ${c.name === e.courseName ? "selected" : ""}>
+              ${escapeHtml(c.name)}
+            </option>
+          `).join("")}
+        </select>
+      </div>
+
+      <div>
+        <label>Zi</label>
+        <select class="scan-entry-day">
+          ${dayNames.map((d, i) => `
+            <option value="${i}" ${i === e.day ? "selected" : ""}>${d}</option>
+          `).join("")}
+        </select>
+      </div>
+
+      <div>
+        <label>Tip</label>
+        <select class="scan-entry-type">
+          ${typeOptions.map((t) => `
+            <option value="${t}" ${t === e.type ? "selected" : ""}>${t}</option>
+          `).join("")}
+        </select>
+      </div>
+
+      <div>
+        <label>Început</label>
+        <input type="time" class="scan-entry-start" value="${escapeHtml(e.startTime)}">
+      </div>
+
+      <div>
+        <label>Sfârșit</label>
+        <input type="time" class="scan-entry-end" value="${escapeHtml(e.endTime)}">
+      </div>
+
+      <div class="full-width">
+        <label>Sală</label>
+        <input type="text" class="scan-entry-room" value="${escapeHtml(e.room)}">
+      </div>
+
+      <div class="full-width">
+        <label>Paritate</label>
+        <select class="scan-entry-parity">
+          ${parityOptions.map((p) => `
+            <option value="${p}" ${p === e.parity ? "selected" : ""}>${p}</option>
+          `).join("")}
+        </select>
+      </div>
+    </div>
+  `).join("");
+}
+
+function collectEditedScanData() {
+  const courses = Array.from(coursesList.querySelectorAll(".scan-course-item")).map((el) => ({
+    name: el.querySelector(".scan-course-name").value.trim(),
+    professor: el.querySelector(".scan-course-prof").value.trim() || null,
+    color: el.querySelector(".scan-course-color").value
+  })).filter((c) => c.name);
+
+  const entries = Array.from(entriesList.querySelectorAll(".scan-entry-item")).map((el) => {
+    const courseIdx = Number(el.querySelector(".scan-entry-course").value);
+    const courseName = courses[courseIdx]?.name || "";
+
+    return {
+      courseName,
+      day: Number(el.querySelector(".scan-entry-day").value),
+      startTime: el.querySelector(".scan-entry-start").value,
+      endTime: el.querySelector(".scan-entry-end").value,
+      room: el.querySelector(".scan-entry-room").value.trim() || "TBA",
+      type: el.querySelector(".scan-entry-type").value,
+      parity: el.querySelector(".scan-entry-parity").value
+    };
+  });
+
+  return { courses, entries };
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+/* ===== Meniul de acțiuni pentru orar ===== */
+
+(() => {
+  const tools = document.getElementById("schedule-tools");
+  if (!tools) return;
+
+  const trigger = tools.querySelector("summary");
+
+  // Închidem meniul la click în exterior.
+  document.addEventListener("click", (event) => {
+    if (tools.open && !tools.contains(event.target)) {
+      tools.open = false;
+    }
+  });
+
+  // Închidem meniul cu Escape.
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && tools.open) {
+      tools.open = false;
+      trigger?.focus();
+    }
+  });
+
+  // Închidem după Oră nouă, Scanare sau Export.
+  tools.addEventListener("click", (event) => {
+    if (event.target.closest("button.schedule-tools-item")) {
+      tools.open = false;
+    }
+  });
+
+  // Pentru import, închidem după selectarea fișierului.
+  document
+    .getElementById("import-schedule-input")
+    ?.addEventListener("change", () => {
+      tools.open = false;
+    });
 })();

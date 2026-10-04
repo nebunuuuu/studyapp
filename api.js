@@ -15,6 +15,8 @@ const http = require("http");
 const db = require("./db");
 const { authMiddleware, publicUser } = require("./auth");
 
+
+
 const router = express.Router();
 router.use(authMiddleware);
 
@@ -33,23 +35,62 @@ const upload = multer({
   }
 });
 
+const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 8 * 1024 * 1024
+  },
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf"
+    ];
+
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error("Încarcă o imagine JPG/PNG/WebP sau un document PDF."));
+    }
+
+    cb(null, true);
+  }
+});
+
 /* ===================== SETĂRI UTILIZATOR ===================== */
 router.get("/settings", async (req, res) => {
   const user = await db.findUserByIdPg(req.userId);
   res.json(publicUser(user));
 });
+
 router.put("/settings", async (req, res) => {
   const {
-  moodleIcsUrl,
-  reminderHoursBefore,
-  educationLevel,
-  language
-} = req.body;
+    moodleIcsUrl,
+    reminderHoursBefore,
+    educationLevel,
+    studyGroup,
+    studySubgroup,
+    className,
+    scheduleOnboardingDismissed,
+    language
+  } = req.body;
+
   const patch = {};
   if (moodleIcsUrl !== undefined) patch.moodle_ics_url = moodleIcsUrl || null;
   if (Array.isArray(reminderHoursBefore)) patch.reminder_hours_before = reminderHoursBefore;
-  if (educationLevel && ["facultate", "liceu"].includes(educationLevel)) patch.education_level = educationLevel;
+
+  if (educationLevel && ["facultate", "liceu", "scoala"].includes(educationLevel)) {
+    patch.education_level = educationLevel;
+  }
+
+  if (studyGroup !== undefined) patch.study_group = studyGroup || null;
+  if (studySubgroup !== undefined) patch.study_subgroup = studySubgroup || null;
+  if (className !== undefined) patch.class_name = className || null;
+  if (scheduleOnboardingDismissed !== undefined) {
+    patch.schedule_onboarding_dismissed = Boolean(scheduleOnboardingDismissed);
+  }
+
   if (language && ["ro", "en"].includes(language)) patch.language = language;
+
   const updated = await db.updateUserPg(req.userId, patch);
   res.json(publicUser(updated));
 });
@@ -953,7 +994,7 @@ if (!openaiApiKey) {
         Authorization: `Bearer ${openaiApiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-mini",
         messages: [
           { role: "system", content: "Generezi flashcards de studiu. Răspunde STRICT cu JSON valid: un array de obiecte {front, back}, fără text suplimentar." },
           { role: "user", content: `Generează ${numCards} flashcards despre: ${topic}. Limba: română.` }
@@ -1082,6 +1123,312 @@ router.get(
   }
 );
 /* ===================== SCHEDULE (orar) ===================== */
+//POST /schedule/scan/preview
+//POST /schedule/scan/preview
+router.post("/schedule/scan/preview", authMiddleware, uploadMemory.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "no_file" });
+  }
+
+  const user = await db.findUserByIdPg(req.userId);
+  const educationLevel = user?.education_level || "liceu";
+  const isUniversity = educationLevel === "facultate";
+
+  if (isUniversity) {
+  return res.status(403).json({
+    error: "university_scan_not_available",
+    message: "Scanarea automată este disponibilă momentan pentru școală și liceu. Pentru facultate, poți adăuga activitățile manual."
+  });
+}
+
+
+  const base64 = req.file.buffer.toString("base64");
+  const mimeType = req.file.mimetype;
+  const isPdf = mimeType === "application/pdf";
+
+  console.log("Schedule scan upload:", {
+    originalName: req.file.originalname,
+    mimeType,
+    size: req.file.size,
+    isPdf
+  });
+
+  if (isPdf) {
+    return res.status(400).json({
+      error: "pdf_detected",
+      message: "PDF-ul a fost primit corect. Urmează să activăm analizarea PDF-urilor."
+    });
+  }
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+
+  if (!openaiApiKey) {
+    return res.status(503).json({ error: "no_api_key" });
+  }
+
+  const validTypes = ["curs", "laborator", "seminar", "proiect", "ora", "altul"];
+  const validParity = ["saptamanal", "saptamana-impara", "saptamana-pare"];
+
+  function normalize(parsed, forceSchoolDefaults) {
+    const courses = (parsed.courses || [])
+      .filter((c) => c.name && typeof c.name === "string")
+      .map((c) => ({
+        name: String(c.name).trim(),
+        professor: c.professor || null,
+        color: c.color || "#5b5bf0"
+      }));
+
+    const entries = (parsed.entries || [])
+      .filter((e) =>
+        e.courseName &&
+        typeof e.day === "number" &&
+        e.day >= 0 && e.day <= 6 &&
+        /^\d{2}:\d{2}$/.test(e.startTime) &&
+        /^\d{2}:\d{2}$/.test(e.endTime)
+      )
+      .map((e) => ({
+        courseName: String(e.courseName).trim(),
+        day: e.day,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        room: e.room || "TBA",
+        type: forceSchoolDefaults
+          ? "ora"
+          : (validTypes.includes(e.type) ? e.type : "altul"),
+        parity: forceSchoolDefaults
+          ? "saptamanal"
+          : (validParity.includes(e.parity) ? e.parity : "saptamanal")
+      }));
+
+    return { courses, entries };
+  }
+
+  async function callOpenAI(promptText) {
+    const messages = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: promptText },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${base64}`,
+              detail: "high"
+            }
+          }
+        ]
+      }
+    ];
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiApiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        messages,
+        temperature: 0,
+        max_tokens: 2500,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("OpenAI error:", data);
+      throw new Error(data.error?.message || "openai_error");
+    }
+
+    const rawContent = data.choices?.[0]?.message?.content || "";
+    const cleanJson = rawContent
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    try {
+      return JSON.parse(cleanJson);
+    } catch (error) {
+      console.error("Nu s-a putut parsa JSON-ul de la OpenAI:", error, rawContent);
+      return { courses: [], entries: [] };
+    }
+  }
+
+  const baseRules = `
+Return ONLY valid JSON with this exact shape:
+
+{
+  "courses": [
+    { "name": "Course name", "professor": "Prof name or null", "color": "#5b5bf0" }
+  ],
+  "entries": [
+    {
+      "courseName": "Exact course name from courses",
+      "day": 1,
+      "startTime": "08:00",
+      "endTime": "08:45",
+      "room": "TBA",
+      "type": "curs",
+      "parity": "saptamanal"
+    }
+  ]
+}
+
+Rules:
+- day: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+- type: curs|laborator|seminar|proiect|ora|altul
+- parity: saptamanal|saptamana-impara|saptamana-pare
+- If room is missing, use "TBA"
+- If professor is missing, use null
+- Use 24-hour time in HH:MM format
+- Every course in "entries" must also appear in "courses" (deduplicated by name)
+`;
+
+ try {
+  const prompt = `You are an exact timetable table parser for a SCHOOL or HIGH-SCHOOL timetable.
+
+The image contains a timetable table.
+
+The FIRST column contains time intervals.
+The OTHER columns are days:
+- Luni = day 1
+- Marti = day 2
+- Miercuri = day 3
+- Joi = day 4
+- Vineri = day 5
+
+There is only ONE class.
+There are NO university groups, subgroups, series, lectures, seminars,
+laboratories, or odd/even week schedules.
+
+IMPORTANT:
+1. Inspect every non-empty cell in the timetable.
+2. Every non-empty cell is one separate entry.
+3. Repeated subjects must remain separate entries.
+4. Do not move a subject to a different day.
+5. Do not merge entries from different time slots.
+6. Use the time interval shown in the first column of the same row.
+7. If a cell is empty, do not create an entry.
+8. Preserve the Romanian subject name as shown in the image.
+
+For every entry ALWAYS use:
+- "type": "ora"
+- "parity": "saptamanal"
+- "room": "TBA" unless a room is explicitly written.
+
+Return ONLY valid JSON:
+
+{
+  "courses": [
+    {
+      "name": "Course name in Romanian",
+      "professor": null,
+      "color": "#5b5bf0"
+    }
+  ],
+  "entries": [
+    {
+      "courseName": "Exact course name from courses",
+      "day": 1,
+      "startTime": "08:00",
+      "endTime": "08:45",
+      "room": "TBA",
+      "type": "ora",
+      "parity": "saptamanal"
+    }
+  ]
+}`;
+
+  const parsed = await callOpenAI(prompt);
+  const result = normalize(parsed, true);
+
+  console.log(
+    "Entries by day (school/highschool):",
+    result.entries.reduce((acc, entry) => {
+      acc[entry.day] = (acc[entry.day] || 0) + 1;
+      return acc;
+    }, {})
+  );
+
+  return res.json({
+    ...result,
+    educationLevel,
+    studyGroup: null
+  });
+} catch (err) {
+  console.error("Eroare la scanarea orarului:", err);
+
+  return res.status(502).json({
+    error: "openai_error",
+    message: err.message
+  });
+}
+});
+
+//POST /schedule/scan/confirm
+router.post("/schedule/scan/confirm", authMiddleware, async (req, res) => {
+  const { courses, entries } = req.body;
+
+  if (!Array.isArray(courses) || !Array.isArray(entries)) {
+    return res.status(400).json({ error: "invalid_payload" });
+  }
+
+  const createdCourses = [];
+  const courseMap = new Map();
+
+  // 1. Creăm materiile (sau le reutilizăm pe cele existente)
+  const existingCourses = await db.listCoursesPg(req.userId);
+  const existingByName = new Map(
+    existingCourses.map((c) => [c.name.toLowerCase(), c])
+  );
+
+  for (const c of courses) {
+    if (!c.name) continue;
+
+    const key = c.name.toLowerCase();
+    let course = existingByName.get(key);
+
+    if (!course) {
+      course = await db.insertCoursePg(req.userId, {
+        name: c.name,
+        professor: c.professor,
+        color: c.color,
+        period: null
+      });
+      createdCourses.push(course);
+    }
+
+    courseMap.set(c.name, course);
+  }
+
+  // 2. Inserăm intrările de orar
+  const createdEntries = [];
+
+  for (const e of entries) {
+    const course = courseMap.get(e.courseName);
+    if (!course) continue;
+
+    const entry = await db.insertScheduleEntryPg(req.userId, {
+      courseId: course.id,
+      title: course.name,
+      day: e.day,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      room: e.room,
+      type: e.type,
+      parity: e.parity,
+      color: course.color
+    });
+
+    createdEntries.push(entry);
+  }
+
+  res.json({
+    courses: createdCourses,
+    entries: createdEntries
+  });
+});
 
 router.get("/schedule", async (req, res) => {
   try {

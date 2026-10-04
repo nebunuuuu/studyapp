@@ -747,57 +747,68 @@ async function findUserByIdentifierPg(identifier) {
 }
 
 async function insertUserPg(user) {
-  const newUser = {
-    id: uid(),
-    sp_balance: 50,
-    last_daily_bonus_date: null,
-    last_ad_watch_at: null,
-    owned_items: [],
-    active_theme: null,
-    active_frame: null,
-    is_pro: false,
-    education_level: "facultate",
-    language: "ro",
-    reminder_hours_before: [24, 1],
-    moodle_ics_url: null,
-    role: "user",
-    ...user
-  };
+const newUser = {
+  id: uid(),
+  sp_balance: 50,
+  last_daily_bonus_date: null,
+  last_ad_watch_at: null,
+  owned_items: [],
+  active_theme: null,
+  active_frame: null,
+  is_pro: false,
+  education_level: null,
+  study_group: null,
+  study_subgroup: null,
+  class_name: null,
+  schedule_onboarding_dismissed: false,
+  language: "ro",
+  reminder_hours_before: [24, 1],
+  moodle_ics_url: null,
+  role: "user",
+  ...user
+};
 
-  const query = `
-    INSERT INTO users (
-      id, name, email, username, password_hash, role,
-      education_level, language, moodle_ics_url, reminder_hours_before,
-      sp_balance, owned_items, active_theme, active_frame, is_pro,
-      last_daily_bonus_date, last_ad_watch_at, created_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6,
-      $7, $8, $9, $10,
-      $11, $12, $13, $14, $15,
-      $16, $17, NOW()
-    )
-    RETURNING *;
-  `;
-
-  const values = [
-    newUser.id,
-    newUser.name,
-    newUser.email,
-    newUser.username,
-    newUser.password_hash || null,
-    newUser.role,
-    newUser.education_level,
-    newUser.language,
-    newUser.moodle_ics_url,
-    JSON.stringify(newUser.reminder_hours_before),
-    newUser.sp_balance,
-    JSON.stringify(newUser.owned_items),
-    newUser.active_theme,
-    newUser.active_frame,
-    newUser.is_pro,
-    newUser.last_daily_bonus_date,
-    newUser.last_ad_watch_at,
-  ];
+const query = `
+  INSERT INTO users (
+    id, name, email, username, password_hash, role,
+    education_level, language, moodle_ics_url, reminder_hours_before,
+    sp_balance, owned_items, active_theme, active_frame, is_pro,
+    last_daily_bonus_date, last_ad_watch_at,
+    study_group, study_subgroup, class_name, schedule_onboarding_dismissed,
+    created_at
+  ) VALUES (
+    $1, $2, $3, $4, $5, $6,
+    $7, $8, $9, $10,
+    $11, $12, $13, $14, $15,
+    $16, $17,
+    $18, $19, $20, $21,
+    NOW()
+  )
+  RETURNING *;
+`;
+const values = [
+  newUser.id,
+  newUser.name,
+  newUser.email,
+  newUser.username,
+  newUser.password_hash || null,
+  newUser.role,
+  newUser.education_level,
+  newUser.language,
+  newUser.moodle_ics_url,
+  JSON.stringify(newUser.reminder_hours_before),
+  newUser.sp_balance,
+  JSON.stringify(newUser.owned_items),
+  newUser.active_theme,
+  newUser.active_frame,
+  newUser.is_pro,
+  newUser.last_daily_bonus_date,
+  newUser.last_ad_watch_at,
+  newUser.study_group,
+  newUser.study_subgroup,
+  newUser.class_name,
+  newUser.schedule_onboarding_dismissed,
+];
 
   const { rows } = await pool.query(query, values);
   return rows[0];
@@ -809,49 +820,56 @@ async function updateUserPg(id, patch) {
 
   const updated = { ...current, ...patch };
 
-  const query = `
-    UPDATE users SET
-      name = $2,
-      email = $3,
-      username = $4,
-      password_hash = $5,
-      role = $6,
-      education_level = $7,
-      language = $8,
-      moodle_ics_url = $9,
-      reminder_hours_before = $10,
-      sp_balance = $11,
-      owned_items = $12,
-      active_theme = $13,
-      active_frame = $14,
-     is_pro = $15,
-pro_expires_at = $16,
-last_daily_bonus_date = $17,
-last_ad_watch_at = $18
-    WHERE id = $1
-    RETURNING *;
-  `;
-
-  const values = [
-    id,
-    updated.name,
-    updated.email,
-    updated.username,
-    updated.password_hash || null,
-    updated.role,
-    updated.education_level,
-    updated.language,
-    updated.moodle_ics_url,
-    JSON.stringify(updated.reminder_hours_before || [24, 1]),
-    updated.sp_balance,
-    JSON.stringify(updated.owned_items || []),
-    updated.active_theme,
-    updated.active_frame,
-    updated.is_pro,
-    updated.pro_expires_at || null,
-    updated.last_daily_bonus_date,
-    updated.last_ad_watch_at,
-  ];
+const query = `
+  UPDATE users SET
+    name = $2,
+    email = $3,
+    username = $4,
+    password_hash = $5,
+    role = $6,
+    education_level = $7,
+    language = $8,
+    moodle_ics_url = $9,
+    reminder_hours_before = $10,
+    sp_balance = $11,
+    owned_items = $12,
+    active_theme = $13,
+    active_frame = $14,
+    is_pro = $15,
+    pro_expires_at = $16,
+    last_daily_bonus_date = $17,
+    last_ad_watch_at = $18,
+    study_group = $19,
+    study_subgroup = $20,
+    class_name = $21,
+    schedule_onboarding_dismissed = $22
+  WHERE id = $1
+  RETURNING *;
+`;
+const values = [
+  id,
+  updated.name,
+  updated.email,
+  updated.username,
+  updated.password_hash || null,
+  updated.role,
+  updated.education_level,
+  updated.language,
+  updated.moodle_ics_url,
+  JSON.stringify(updated.reminder_hours_before || [24, 1]),
+  updated.sp_balance,
+  JSON.stringify(updated.owned_items || []),
+  updated.active_theme,
+  updated.active_frame,
+  updated.is_pro,
+  updated.pro_expires_at || null,
+  updated.last_daily_bonus_date,
+  updated.last_ad_watch_at,
+  updated.study_group || null,
+  updated.study_subgroup || null,
+  updated.class_name || null,
+  Boolean(updated.schedule_onboarding_dismissed),
+];
 
   const { rows } = await pool.query(query, values);
   return rows[0] || null;
