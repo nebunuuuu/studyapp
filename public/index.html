@@ -15,7 +15,6 @@
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="orbit-ui.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
 </head>
 
@@ -44,67 +43,7 @@
       </div>
 
       <div class="login-card">
-        <div class="logo orbit-logo" aria-label="StudyApp">
-  <svg
-    class="orbit-svg orbit-svg-login"
-    viewBox="0 0 160 160"
-    aria-hidden="true">
-
-    <ellipse
-      id="login-path-a"
-      class="orbit-path"
-      cx="80"
-      cy="80"
-      rx="62"
-      ry="30">
-    </ellipse>
-
-    <ellipse
-      id="login-path-b"
-      class="orbit-path"
-      cx="80"
-      cy="80"
-      rx="30"
-      ry="62"
-      transform="rotate(34 80 80)">
-    </ellipse>
-
-    <ellipse
-      id="login-path-c"
-      class="orbit-path"
-      cx="80"
-      cy="80"
-      rx="52"
-      ry="52"
-      transform="rotate(62 80 80)">
-    </ellipse>
-
-    <circle
-      class="orbit-core-svg"
-      cx="80"
-      cy="80"
-      r="19">
-    </circle>
-
-    <circle class="orbit-dot orbit-dot-a" r="4">
-      <animateMotion dur="7s" repeatCount="indefinite">
-        <mpath href="#login-path-a"></mpath>
-      </animateMotion>
-    </circle>
-
-    <circle class="orbit-dot orbit-dot-b" r="3">
-      <animateMotion dur="10s" begin="-3s" repeatCount="indefinite">
-        <mpath href="#login-path-b"></mpath>
-      </animateMotion>
-    </circle>
-
-    <circle class="orbit-dot orbit-dot-c" r="2.5">
-      <animateMotion dur="13s" begin="-5s" repeatCount="indefinite">
-        <mpath href="#login-path-c"></mpath>
-      </animateMotion>
-    </circle>
-  </svg>
-</div>
+        <div class="logo login-brand-mark orbit-logo" aria-hidden="true"></div>
         <h1 data-i18n="app_name"></h1>
         <p class="subtitle" data-i18n="login_subtitle"></p>
 
@@ -658,55 +597,133 @@
       </div>
     </div>
 
-    <div id="modal-settings" class="modal hidden">
+    <div id="modal-settings" class="modal modal-settings-hub hidden">
       <h3 data-i18n="settings_title"></h3>
+      <p class="settings-hub-intro" data-i18n="settings_hub_intro"></p>
 
-      <div class="settings-section">
-        <h4 data-i18n="settings_language"></h4>
-        <select id="settings-language">
-          <option value="ro">Română</option>
-          <option value="en">English</option>
-        </select>
-      </div>
+      <!-- Aspect -->
+      <section class="settings-section settings-appearance">
+        <div class="settings-section-heading">
+          <div>
+            <span class="settings-kicker" data-i18n="settings_visual_preferences"></span>
+            <h4 data-i18n="settings_appearance"></h4>
+            <p class="muted" data-i18n="settings_appearance_text"></p>
+          </div>
+          <span class="settings-section-icon" aria-hidden="true">✦</span>
+        </div>
 
-      <div class="settings-section">
-        <h4 data-i18n="settings_education_level"></h4>
-        <select id="settings-education-level">
-          <option value="facultate" data-i18n="level_university"></option>
-          <option value="liceu" data-i18n="level_highschool"></option>
-          <option value="scoala" data-i18n="level_school"></option>
-        </select>
+        <div class="theme-choice-group" role="group" aria-label="Aspect aplicație">
+          <button type="button" class="theme-choice-btn" data-theme-choice="light">
+            <span class="theme-choice-icon" aria-hidden="true">☀</span>
+            <span data-i18n="settings_light"></span>
+          </button>
+
+          <button type="button" class="theme-choice-btn" data-theme-choice="dark">
+            <span class="theme-choice-icon" aria-hidden="true">☾</span>
+            <span data-i18n="settings_dark"></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Limbă -->
+      <section class="settings-section settings-hub-card">
+        <div class="settings-section-heading">
+          <div>
+            <span class="settings-kicker" data-i18n="settings_language_kicker"></span>
+            <h4 data-i18n="settings_language_title"></h4>
+            <p class="muted" data-i18n="settings_language_text"></p>
+          </div>
+          <span class="settings-section-icon" aria-hidden="true">◎</span>
+        </div>
+
+        <label class="settings-hub-field">
+          <span data-i18n="settings_interface"></span>
+          <select id="settings-language">
+            <option value="ro">Română</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </section>
+
+      <!-- Studiu -->
+      <section class="settings-section settings-hub-card">
+        <div class="settings-section-heading">
+          <div>
+            <span class="settings-kicker" data-i18n="settings_academic_kicker"></span>
+            <h4 data-i18n="settings_study_title"></h4>
+            <p class="muted" data-i18n="settings_study_text"></p>
+          </div>
+          <span class="settings-section-icon" aria-hidden="true">⌁</span>
+        </div>
+
+        <label class="settings-hub-field">
+          <span data-i18n="settings_education_level_label"></span>
+          <select id="settings-education-level">
+            <option value="facultate" data-i18n="level_university"></option>
+            <option value="liceu" data-i18n="level_highschool"></option>
+            <option value="scoala" data-i18n="level_school"></option>
+          </select>
+        </label>
 
         <div id="settings-group-field">
-          <input type="text" id="settings-study-group" data-i18n-ph="onboarding_group_ph">
+          <label class="settings-hub-field">
+            <span data-i18n="settings_group_label"></span>
+            <input type="text" id="settings-study-group" data-i18n-ph="onboarding_group_ph">
+          </label>
         </div>
 
         <div id="settings-subgroup-field">
-          <input type="text" id="settings-study-subgroup" data-i18n-ph="onboarding_subgroup_ph">
+          <label class="settings-hub-field">
+            <span data-i18n="settings_subgroup_label"></span>
+            <input type="text" id="settings-study-subgroup" data-i18n-ph="onboarding_subgroup_ph">
+          </label>
         </div>
 
         <div id="settings-class-field" class="hidden">
-          <input type="text" id="settings-class-name" data-i18n-ph="onboarding_class_ph">
+          <label class="settings-hub-field">
+            <span data-i18n="settings_class_label"></span>
+            <input type="text" id="settings-class-name" data-i18n-ph="onboarding_class_ph">
+          </label>
         </div>
-      </div>
-      <div class="settings-section">
-        <h4 data-i18n="settings_moodle_title"></h4>
-        <p class="muted" data-i18n="settings_moodle_text"></p>
-        <input type="text" id="settings-moodle-url" placeholder="https://moodle.../calendar/export_execute.php?...">
-      </div>
+      </section>
 
-      <div class="settings-section">
-        <h4 data-i18n="settings_reminder_title"></h4>
-        <p class="muted" data-i18n="settings_reminder_text"></p>
+      <!-- Calendar -->
+      <section class="settings-section settings-hub-card">
+        <div class="settings-section-heading">
+          <div>
+            <span class="settings-kicker" data-i18n="settings_calendar_kicker"></span>
+            <h4 data-i18n="settings_calendar_title"></h4>
+            <p class="muted" data-i18n="settings_calendar_text"></p>
+          </div>
+          <span class="settings-section-icon" aria-hidden="true">◫</span>
+        </div>
+
+        <label class="settings-hub-field">
+          <span data-i18n="settings_moodle_label"></span>
+          <input type="text" id="settings-moodle-url" placeholder="https://moodle.../calendar/export_execute.php?...">
+        </label>
+      </section>
+
+      <!-- Notificări -->
+      <section class="settings-section settings-hub-card">
+        <div class="settings-section-heading">
+          <div>
+            <span class="settings-kicker" data-i18n="settings_notifications_kicker"></span>
+            <h4 data-i18n="settings_notifications_title"></h4>
+            <p class="muted" data-i18n="settings_notifications_text"></p>
+          </div>
+          <span class="settings-section-icon" aria-hidden="true">◉</span>
+        </div>
+
         <div class="reminder-options" id="reminder-options">
-          <label><input type="checkbox" value="48"> 48h</label>
-          <label><input type="checkbox" value="24"> 24h</label>
-          <label><input type="checkbox" value="12"> 12h</label>
-          <label><input type="checkbox" value="1"> 1h</label>
+          <label><input type="checkbox" value="48"> <span>48 h</span></label>
+          <label><input type="checkbox" value="24"> <span>24 h</span></label>
+          <label><input type="checkbox" value="12"> <span>12 h</span></label>
+          <label><input type="checkbox" value="1"> <span>1 h</span></label>
         </div>
-      </div>
+      </section>
 
-      <div class="modal-actions">
+      <div class="modal-actions settings-hub-actions">
         <button class="btn btn-ghost" data-close-modal data-i18n="modal_cancel"></button>
         <button id="save-settings-btn" class="btn btn-primary" data-i18n="save_settings_btn"></button>
       </div>

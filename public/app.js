@@ -809,8 +809,31 @@ function openSettingsModal() {
       cb.checked = activeHours.includes(Number(cb.value));
     });
   toggleSettingsFields(state.user.education_level || "facultate");
+  const activeTheme =
+    document.documentElement.getAttribute("data-theme") || "light";
+
+  document.querySelectorAll("[data-theme-choice]").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.themeChoice === activeTheme
+    );
+  });
   openModal("modal-settings");
 }
+document.querySelectorAll("[data-theme-choice]").forEach(button => {
+  button.addEventListener("click", () => {
+    const theme = button.dataset.themeChoice;
+
+    applyTheme(theme);
+
+    document.querySelectorAll("[data-theme-choice]").forEach(choice => {
+      choice.classList.toggle(
+        "active",
+        choice.dataset.themeChoice === theme
+      );
+    });
+  });
+});
 document.getElementById("settings-btn").addEventListener("click", openSettingsModal);
 document.getElementById("settings-btn-sb").addEventListener("click", openSettingsModal);
 
