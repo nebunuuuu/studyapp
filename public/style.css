@@ -3294,3 +3294,79 @@ button {
     box-sizing: border-box;
   }
 }
+/* Fix iPhone: orarul dinamic trebuie să fie o singură coloană */
+@media (max-width: 640px) {
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-day-card {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-day-head {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 20px 18px 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-day-name {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 6px !important;
+    font-size: 21px !important;
+    line-height: 1.2 !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-day-date {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-entry-list {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 12px !important;
+    padding: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-entry {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-entry-title,
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-entry-time,
+  #tab-schedule .schedule-grid.schedule-grid-dynamic
+    .schedule-dynamic-shell
+    .schedule-entry-meta {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
