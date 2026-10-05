@@ -65,9 +65,7 @@
           <input type="email" id="register-email" data-i18n-ph="register_email_ph" required autocomplete="email">
           <input type="password" id="register-password" data-i18n-ph="register_password_ph" required
             autocomplete="new-password">
-          <input type="text" id="register-access-code" data-i18n-ph="register_access_code_ph" required
-            autocomplete="off" spellcheck="false">
-          <small class="field-hint" data-i18n="alpha_register_hint"></small>
+
           <select id="register-level">
             <option value="facultate" data-i18n="level_university"></option>
             <option value="liceu" data-i18n="level_highschool"></option>
@@ -79,9 +77,6 @@
         <div class="divider">
           <span data-i18n="or_divider"></span>
         </div>
-        <input type="text" id="oauth-access-code" data-i18n-ph="register_access_code_ph" autocomplete="off"
-          spellcheck="false">
-        <small class="field-hint" data-i18n="alpha_google_hint"></small>
         <div id="oauth-error" class="form-error hidden"></div>
         <div class="oauth-buttons">
           <button type="button" id="google-login-btn" class="btn btn-oauth">
@@ -381,7 +376,7 @@
             </button>
           </div>
 
-          <div class="schedule-filters">
+          <div id="schedule-filters" class="schedule-filters">
             <button class="schedule-filter-btn active" data-schedule-filter="all" data-i18n="schedule_filter_all">
             </button>
 
@@ -820,56 +815,146 @@
     </div>
 
     <!-- ===== SHOP MODAL (StudyPoints) ===== -->
-    <div id="modal-shop" class="modal modal-wide hidden">
+    <div id="modal-shop" class="modal modal-wide modal-shop-hub hidden">
+  <div class="shop-hub-heading">
+    <div>
+      <span class="shop-hub-kicker">ORBIT WALLET</span>
       <h3 data-i18n="shop_title"></h3>
-
-      <div class="shop-balance-row">
-        <div class="shop-balance"><span class="wallet-icon">🪙</span><span id="shop-balance-value">0</span> SP</div>
-        <div class="shop-earn-actions">
-          <button id="shop-claim-daily-bonus-btn" class="btn btn-secondary">
-            <span data-i18n="shop_daily_bonus_btn"></span>
-          </button>
-
-          <button id="shop-watch-ad-btn" class="btn btn-secondary" data-i18n="shop_watch_ad"></button>
-        </div>
-      </div>
-      <div class="shop-tabs">
-        <button class="shop-tab-btn active" data-shop-tab="items" data-i18n="shop_tab_items"></button>
-        <button class="shop-tab-btn" data-shop-tab="packages" data-i18n="shop_tab_packages"></button>
-      </div>
-
-      <div id="shop-panel-items" class="shop-panel">
-        <div id="shop-items-grid" class="shop-items-grid"></div>
-      </div>
-
-      <div id="shop-panel-packages" class="shop-panel hidden">
-        <div id="shop-packages-grid" class="shop-packages-grid"></div>
-
-        <div class="shop-pro-section">
-          <h4 class="shop-pro-title">
-            <span data-i18n="shop_pro_title"></span>
-          </h4>
-
-          <p class="muted shop-note">
-            <span data-i18n="shop_pro_description"></span>
-          </p>
-
-          <div id="shop-pro-plans-grid" class="shop-packages-grid"></div>
-        </div>
-        <section class="shop-history">
-          <h4 class="shop-history-title" data-i18n="shop_history_title"></h4>
-
-          <div id="study-points-history-list">
-            <div class="shop-history-empty" data-i18n="shop_history_loading"></div>
-          </div>
-        </section>
-        <p class="muted shop-note" data-i18n="shop_packages_note"></p>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn btn-ghost" data-close-modal data-i18n="modal_close"></button>
-      </div>
+      <p class="muted" data-i18n="shop_hub_subtitle">
+        Personalizează-ți experiența și câștigă puncte prin progres.
+      </p>
     </div>
+  </div>
+
+  <!-- Sold + moduri de a câștiga -->
+  <section class="shop-wallet-hero">
+    <div class="shop-wallet-glow" aria-hidden="true"></div>
+
+    <div class="shop-wallet-balance-block">
+      <span class="shop-wallet-label" data-i18n="shop_balance_label">
+        BALANȚĂ DISPONIBILĂ
+      </span>
+
+      <div class="shop-balance">
+        <span class="shop-balance-orbit shop-sp-orbit" aria-hidden="true">
+  <span class="shop-sp-orbit-core"></span>
+  <span class="shop-sp-orbit-ring"></span>
+</span>
+        <span id="shop-balance-value">0</span>
+        <span class="shop-balance-unit">SP</span>
+      </div>
+
+      <p class="shop-wallet-text" data-i18n="shop_wallet_text">
+        Completează taskuri și păstrează progresul pentru a câștiga StudyPoints.
+      </p>
+    </div>
+
+    <div class="shop-earn-actions">
+      <button id="shop-claim-daily-bonus-btn" class="btn btn-secondary shop-earn-btn">
+    
+        <span data-i18n="shop_daily_bonus_btn"></span>
+      </button>
+
+      <button id="shop-watch-ad-btn" class="btn btn-secondary shop-earn-btn">
+        
+        <span data-i18n="shop_watch_ad"></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Taburi -->
+  <div class="shop-tabs shop-hub-tabs" role="tablist">
+    <button
+      class="shop-tab-btn active"
+      data-shop-tab="items"
+      role="tab"
+      aria-selected="true"
+      data-i18n="shop_tab_items"
+    ></button>
+
+    <button
+      class="shop-tab-btn"
+      data-shop-tab="packages"
+      role="tab"
+      aria-selected="false"
+      data-i18n="shop_tab_packages"
+    ></button>
+  </div>
+
+  <!-- Personalizare -->
+  <section id="shop-panel-items" class="shop-panel">
+    <div class="shop-panel-heading">
+      <div>
+        <span class="shop-section-kicker" data-i18n="shop_personalize_kicker">
+          PERSONALIZEAZĂ
+        </span>
+        <h4 data-i18n="shop_personalize_title">Identitatea ta</h4>
+      </div>
+    
+    </div>
+
+    <p class="shop-section-text" data-i18n="shop_personalize_text">
+      Alege teme de culoare și frame-uri pentru avatar.
+    </p>
+
+    <div id="shop-items-grid" class="shop-items-grid"></div>
+  </section>
+
+  <!-- Pachete / Pro / Istoric -->
+  <section id="shop-panel-packages" class="shop-panel hidden">
+    <div class="shop-panel-heading">
+      <div>
+        <span class="shop-section-kicker" data-i18n="shop_packages_kicker">
+          STUDYPOINTS
+        </span>
+        <h4 data-i18n="shop_packages_title">Pachete de puncte</h4>
+      </div>
+      
+    </div>
+
+    <p class="shop-section-text" data-i18n="shop_packages_hub_text">
+      Folosește pachetele disponibile pentru a testa opțiunile din Shop.
+    </p>
+
+    <div id="shop-packages-grid" class="shop-packages-grid"></div>
+
+    <div class="shop-pro-section">
+      <div class="shop-panel-heading shop-pro-heading">
+        <div>
+          <span class="shop-section-kicker">STUDY PRO</span>
+          <h4 class="shop-pro-title" data-i18n="shop_pro_title"></h4>
+        </div>
+        
+      </div>
+
+      <p class="muted shop-note" data-i18n="shop_pro_description"></p>
+
+      <div id="shop-pro-plans-grid" class="shop-packages-grid"></div>
+    </div>
+
+    <section class="shop-history">
+      <div class="shop-panel-heading shop-history-heading">
+        <div>
+          <span class="shop-section-kicker" data-i18n="shop_history_kicker">
+            ACTIVITATE
+          </span>
+          <h4 class="shop-history-title" data-i18n="shop_history_title"></h4>
+        </div>
+        
+      </div>
+
+      <div id="study-points-history-list">
+        <div class="shop-history-empty" data-i18n="shop_history_loading"></div>
+      </div>
+    </section>
+
+    <p class="muted shop-note shop-packages-note" data-i18n="shop_packages_note"></p>
+  </section>
+
+  <div class="modal-actions shop-hub-actions">
+    <button class="btn btn-ghost" data-close-modal data-i18n="modal_close"></button>
+  </div>
+</div>
 
     <!-- ===== AD WATCH SIMULATION MODAL ===== -->
     <div id="modal-ad-watch" class="modal hidden">

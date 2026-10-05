@@ -274,6 +274,58 @@
     </svg>
   `;
   }
+  function studyPointsIcon() {
+  return `
+    <svg
+      class="sp-orbit-svg"
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <radialGradient id="sp-core-gradient" cx="34%" cy="28%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
+          <stop offset="42%" stop-color="var(--accent)" stop-opacity="0.96" />
+          <stop offset="100%" stop-color="var(--primary)" stop-opacity="1" />
+        </radialGradient>
+      </defs>
+
+      <ellipse
+        class="sp-orbit-ring sp-orbit-ring-a"
+        cx="16"
+        cy="16"
+        rx="13"
+        ry="5.2"
+        transform="rotate(-25 16 16)"
+      />
+      <ellipse
+        class="sp-orbit-ring sp-orbit-ring-b"
+        cx="16"
+        cy="16"
+        rx="11.4"
+        ry="6.5"
+        transform="rotate(35 16 16)"
+      />
+
+      <circle
+        class="sp-core"
+        cx="16"
+        cy="16"
+        r="5.1"
+        fill="url(#sp-core-gradient)"
+      />
+
+      <circle class="sp-orbit-dot" r="1.45">
+        <animateMotion
+          dur="7s"
+          repeatCount="indefinite"
+          path="M16,16 m-13,0 a13,5.2 0 1,0 26,0 a13,5.2 0 1,0 -26,0"
+        />
+      </circle>
+    </svg>
+  `;
+}
+
 
   document.querySelectorAll(".logo-link").forEach(logo => {
     if (logo.querySelector(".orbit-logo")) return;
@@ -292,6 +344,12 @@
   if (loginBrandMark) {
     loginBrandMark.innerHTML = orbitGraphic("orbit-svg-small");
   }
+  const walletIcon = document.querySelector("#wallet-pill .wallet-icon");
+
+if (walletIcon) {
+  walletIcon.classList.add("sp-wallet-icon");
+  walletIcon.innerHTML = studyPointsIcon();
+}
   document
     .querySelectorAll('.tab-btn[data-tab="home"] > span:first-child')
     .forEach(iconSlot => {

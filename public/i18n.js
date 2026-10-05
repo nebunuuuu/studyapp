@@ -296,7 +296,17 @@ const I18N = {
     settings_moodle_label: "Link Moodle / ICS",
     settings_notifications_kicker: "NOTIFICĂRI",
     settings_notifications_title: "Reminder-e pentru deadline-uri",
-    settings_notifications_text: "Selectează când vrei să primești notificări."
+    settings_notifications_text: "Selectează când vrei să primești notificări.",
+    shop_hub_subtitle: "Personalizează-ți experiența și câștigă puncte prin progres.",
+shop_balance_label: "BALANȚĂ DISPONIBILĂ",
+shop_wallet_text: "Completează taskuri și păstrează progresul pentru a câștiga StudyPoints.",
+shop_personalize_kicker: "PERSONALIZEAZĂ",
+shop_personalize_title: "Identitatea ta",
+shop_personalize_text: "Alege teme de culoare și frame-uri pentru avatar.",
+shop_packages_kicker: "STUDYPOINTS",
+shop_packages_title: "Pachete de puncte",
+shop_packages_hub_text: "Folosește pachetele disponibile pentru a testa opțiunile din Shop.",
+shop_history_kicker: "ACTIVITATE"
 
   },
 
@@ -591,7 +601,17 @@ const I18N = {
     settings_moodle_label: "Moodle / ICS link",
     settings_notifications_kicker: "NOTIFICATIONS",
     settings_notifications_title: "Deadline reminders",
-    settings_notifications_text: "Choose when you want to receive notifications."
+    settings_notifications_text: "Choose when you want to receive notifications.",
+    shop_hub_subtitle: "Personalize your experience and earn points through progress.",
+shop_balance_label: "AVAILABLE BALANCE",
+shop_wallet_text: "Complete tasks and keep progressing to earn StudyPoints.",
+shop_personalize_kicker: "PERSONALIZE",
+shop_personalize_title: "Your identity",
+shop_personalize_text: "Choose color themes and avatar frames.",
+shop_packages_kicker: "STUDYPOINTS",
+shop_packages_title: "Point packages",
+shop_packages_hub_text: "Use the available packages to explore Shop options.",
+shop_history_kicker: "ACTIVITY"
   }
 };
 

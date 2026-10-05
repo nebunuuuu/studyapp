@@ -64,50 +64,50 @@ function authMiddleware(req, res, next) {
 }
 
 router.post("/register", async (req, res) => {
-const {
-  name,
-  email,
-  password,
-  educationLevel,
-  accessCode
-} = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: "Toate câmpurile sunt necesare." });
-  const configuredAlphaCode = (process.env.ALPHA_ACCESS_CODE || "").trim();
+  const {
+    name,
+    email,
+    password,
+    educationLevel
+  } = req.body;
 
-if (!configuredAlphaCode) {
-  return res.status(500).json({
-    error: "Codul de acces alpha nu este configurat pe server."
-  });
-}
+  if (!name || !email || !password) {
+    return res.status(400).json({
+      error: "Toate câmpurile sunt necesare."
+    });
+  }
 
-const alphaGranted =
-  Boolean(accessCode) &&
-  accessCode.trim().toUpperCase() === configuredAlphaCode.toUpperCase();
+  if (password.length < 8) {
+    return res.status(400).json({
+      error: "Parola trebuie să aibă minim 8 caractere."
+    });
+  }
 
-if (!alphaGranted) {
-  return res.status(403).json({
-    error: accessCode
-      ? "alpha_code_invalid"
-      : "alpha_code_invalid"
-  });
-}
-  if (password.length < 8) return res.status(400).json({ error: "Parola trebuie să aibă minim 8 caractere." });
   if (await db.findUserByIdentifierPg(email)) {
-  return res.status(409).json({ error: "Există deja un cont cu acest email." });
-}
+    return res.status(409).json({
+      error: "Există deja un cont cu acest email."
+    });
+  }
 
   const password_hash = await bcrypt.hash(password, 10);
   const username = email.split("@")[0];
 
   const user = await db.insertUserPg({
-    name, email, username, password_hash,
+    name,
+    email,
+    username,
+    password_hash,
     education_level: ["facultate", "liceu", "scoala"].includes(educationLevel)
       ? educationLevel
       : null
   });
 
   const token = signToken(user);
-  res.status(201).json({ token, user: publicUser(user) });
+
+  res.status(201).json({
+    token,
+    user: publicUser(user)
+  });
 });
 
 router.post("/login", async (req, res) => {
@@ -208,40 +208,10 @@ router.put("/onboarding", authMiddleware, async (req, res) => {
 /* ===================== GOOGLE OAUTH ===================== */
 
 router.get("/google", (req, res) => {
-  res.redirect("/?error=alpha_code_required");
+  res.redirect("/");
 });
 
 router.post("/google/start", (req, res) => {
-  const { accessCode } = req.body;
-const configuredAlphaCodes = String(
-  process.env.ALPHA_ACCESS_CODE || ""
-)
-  .split(",")
-  .map((code) => code.trim().toUpperCase())
-  .filter(Boolean);
-
-if (!configuredAlphaCodes.length) {
-  return res.status(500).json({
-    error: "Codul de acces alpha nu este configurat pe server."
-  });
-}
-
-const normalizedAccessCode = String(accessCode || "")
-  .trim()
-  .toUpperCase();
-
-const alphaGranted =
-  Boolean(normalizedAccessCode) &&
-  configuredAlphaCodes.includes(normalizedAccessCode);
-
-if (!alphaGranted) {
-  return res.status(403).json({
-    error: accessCode
-      ? "alpha_code_invalid"
-      : "alpha_code_required"
-  });
-}
-
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {
@@ -250,14 +220,13 @@ if (!alphaGranted) {
     });
   }
 
- const oauthState = jwt.sign(
-  {
-    flow: "google-alpha",
-    alphaGranted
-  },
-  JWT_SECRET,
-  { expiresIn: "10m" }
-);
+  const oauthState = jwt.sign(
+    {
+      flow: "google"
+    },
+    JWT_SECRET,
+    { expiresIn: "10m" }
+  );
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -285,51 +254,72 @@ router.get("/google/callback", async (req, res) => {
 
   try {
     oauthState = jwt.verify(state, JWT_SECRET);
-  } catch {
-    return res.redirect("/?error=alpha_code_required");
+  } catch (error) {
+    console.error("Google OAuth state invalid:", error.message);
+    return res.redirect("/?error=oauth_state");
   }
 
-  if (!oauthState || oauthState.flow !== "google-alpha") {
-    return res.redirect("/?error=alpha_code_required");
+  if (!oauthState || oauthState.flow !== "google") {
+    console.error("Google OAuth unexpected state:", oauthState);
+    return res.redirect("/?error=oauth_state");
   }
 
   try {
-   const redirectUri = GOOGLE_REDIRECT_URI;
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
       body: new URLSearchParams({
-        code, client_id: clientId, client_secret: clientSecret,
-        redirect_uri: redirectUri, grant_type: "authorization_code"
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        grant_type: "authorization_code"
       })
     });
-    const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return res.redirect("/?error=oauth_token");
 
-    const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` }
-    });
-    const profile = await profileRes.json();
+    const tokenData = await tokenResponse.json();
 
-   let user = await db.findUserByIdentifierPg(profile.email);
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error("Google OAuth token error:", tokenData);
+      return res.redirect("/?error=oauth_token");
+    }
 
-if (!user && !oauthState.alphaGranted) {
-  return res.redirect("/?error=alpha_code_required");
-}
+    const profileResponse = await fetch(
+      "https://www.googleapis.com/oauth2/v2/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`
+        }
+      }
+    );
 
-if (!user) {
-  user = await db.insertUserPg({
-    name: profile.name || profile.email.split("@")[0],
-    email: profile.email,
-    username: profile.email.split("@")[0],
-    password_hash: null,
-    education_level: null
-  });
-}
+    const profile = await profileResponse.json();
+
+    if (!profileResponse.ok || !profile.email) {
+      console.error("Google OAuth profile error:", profile);
+      return res.redirect("/?error=oauth_profile");
+    }
+
+    let user = await db.findUserByIdentifierPg(profile.email);
+
+    if (!user) {
+      user = await db.insertUserPg({
+        name: profile.name || profile.email.split("@")[0],
+        email: profile.email,
+        username: profile.email.split("@")[0],
+        password_hash: null,
+        education_level: null
+      });
+    }
+
     const token = signToken(user);
-    res.redirect(`/?token=${token}`);
-  } catch (err) {
-    res.redirect("/?error=oauth_failed");
+
+    return res.redirect(`/?token=${encodeURIComponent(token)}`);
+  } catch (error) {
+    console.error("Google OAuth callback failed:", error);
+    return res.redirect("/?error=oauth_failed");
   }
 });
 

@@ -291,10 +291,6 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
   const name = document.getElementById("register-name").value.trim();
   const email = document.getElementById("register-email").value.trim();
   const password = document.getElementById("register-password").value;
-  const accessCode = document
-    .getElementById("register-access-code")
-    .value
-    .trim();
   const educationLevel = document.getElementById("register-level").value;
   const errBox = document.getElementById("register-error");
   errBox.classList.add("hidden");
@@ -303,8 +299,7 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
       name,
       email,
       password,
-      educationLevel,
-      accessCode
+      educationLevel
     });
     token = data.token;
     localStorage.setItem("studyapp_token", token);
@@ -317,16 +312,9 @@ document.getElementById("register-form").addEventListener("submit", async (e) =>
 });
 
 document.getElementById("google-login-btn").addEventListener("click", async () => {
-  const code = document.getElementById("oauth-access-code").value.trim();
   const errorBox = document.getElementById("oauth-error");
 
   errorBox.classList.add("hidden");
-
-  if (!code) {
-    errorBox.textContent = t("alpha_code_required");
-    errorBox.classList.remove("hidden");
-    return;
-  }
 
   try {
     const response = await fetch(`${AUTH}/google/start`, {
@@ -335,7 +323,6 @@ document.getElementById("google-login-btn").addEventListener("click", async () =
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        accessCode: code
       })
     });
 
@@ -1089,18 +1076,39 @@ async function equipShopItem(itemId) {
 
 function renderShopPackages() {
   const grid = document.getElementById("shop-packages-grid");
+
   grid.innerHTML = state.spPackages
     .map(
-      (pkg) => `<div class="shop-package-card">
-        <div class="shop-package-sp">🪙 ${pkg.sp}</div>
-        <div class="shop-package-price">${pkg.label}</div>
-        <button class="btn btn-secondary shop-item-btn" data-redeem="${pkg.id}">${t("shop_buy_btn")}</button>
-      </div>`
+      (pkg) => `
+        <div class="shop-package-card">
+          <div class="shop-package-sp shop-package-sp-value">
+            <span class="shop-package-orbit shop-sp-orbit" aria-hidden="true">
+              <span class="shop-sp-orbit-core"></span>
+              <span class="shop-sp-orbit-ring"></span>
+            </span>
+
+            <span>${pkg.sp}</span>
+          </div>
+
+          <div class="shop-package-price">${pkg.label}</div>
+
+          <button
+            class="btn btn-secondary shop-item-btn"
+            data-redeem="${pkg.id}"
+          >
+            ${t("shop_buy_btn")}
+          </button>
+        </div>
+      `
     )
     .join("");
+
   grid.querySelectorAll("[data-redeem]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const result = await api("POST", "/wallet/redeem-package", { packageId: btn.dataset.redeem });
+      const result = await api("POST", "/wallet/redeem-package", {
+        packageId: btn.dataset.redeem
+      });
+
       state.wallet.balance = result.balance;
       updateWalletPill();
       showToast(t("toast_ad_watched", { n: result.gained }));

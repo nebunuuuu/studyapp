@@ -2527,3 +2527,770 @@ button {
     font-size: 17px;
   }
 }
+/* ─────────────────────────────────────────────
+   StudyPoints — Orbit Wallet
+   ───────────────────────────────────────────── */
+
+#wallet-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  max-width: 156px;
+  padding: 6px 13px 6px 7px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary-light) 28%, var(--border));
+  border-radius: 17px;
+  color: var(--text);
+  background:
+    radial-gradient(
+      circle at 8% 22%,
+      color-mix(in srgb, var(--accent) 21%, transparent),
+      transparent 40%
+    ),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow:
+    0 7px 19px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition:
+    transform 220ms var(--spring),
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
+}
+
+#wallet-pill::before {
+  position: absolute;
+  top: -24px;
+  right: -22px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  content: "";
+  opacity: 0.7;
+  filter: blur(5px);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  pointer-events: none;
+}
+
+#wallet-pill::after {
+  position: absolute;
+  top: 50%;
+  left: 46px;
+  width: 1px;
+  height: 22px;
+  content: "";
+  opacity: 0.7;
+  transform: translateY(-50%);
+  background: color-mix(in srgb, var(--border) 72%, transparent);
+}
+
+.sp-wallet-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.sp-orbit-svg {
+  display: block;
+  width: 32px;
+  height: 32px;
+  overflow: visible;
+}
+
+.sp-orbit-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--primary-light) 68%, white);
+  stroke-width: 0.85;
+  opacity: 0.78;
+}
+
+.sp-orbit-ring-b {
+  stroke: color-mix(in srgb, var(--accent) 74%, white);
+  opacity: 0.86;
+}
+
+.sp-core {
+  filter: drop-shadow(
+    0 0 5px color-mix(in srgb, var(--accent) 76%, transparent)
+  );
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sp-core-pulse 3.6s ease-in-out infinite;
+}
+
+.sp-orbit-dot {
+  fill: #ffffff;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.92));
+}
+
+@keyframes sp-core-pulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+  }
+
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+#wallet-balance {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-family: "Sora", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.055em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#wallet-balance::after {
+  margin-left: 4px;
+  color: var(--text-muted);
+  content: "SP";
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  vertical-align: 0.12em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #wallet-pill:hover {
+    border-color: color-mix(in srgb, var(--primary-light) 52%, var(--border));
+    transform: translateY(-2px);
+    background:
+      radial-gradient(
+        circle at 8% 22%,
+        color-mix(in srgb, var(--accent) 30%, transparent),
+        transparent 42%
+      ),
+      color-mix(in srgb, var(--surface) 94%, transparent);
+    box-shadow:
+      0 12px 25px color-mix(in srgb, var(--primary) 19%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  #wallet-pill:hover .sp-wallet-icon {
+    transform: rotate(-7deg) scale(1.08);
+  }
+}
+
+@media (max-width: 520px) {
+  #wallet-pill {
+    max-width: 108px;
+    min-height: 42px;
+    padding: 5px 9px 5px 5px;
+    gap: 6px;
+    border-radius: 15px;
+  }
+
+  #wallet-pill::after {
+    display: none;
+  }
+
+  .sp-wallet-icon,
+  .sp-orbit-svg {
+    width: 29px;
+    min-width: 29px;
+    height: 29px;
+  }
+
+  #wallet-balance {
+    font-size: 12px;
+  }
+
+  #wallet-balance::after {
+    font-size: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-core {
+    animation: none;
+  }
+
+  .sp-orbit-svg animateMotion {
+    display: none;
+  }
+
+  #wallet-pill {
+    transition: none;
+  }
+}
+/* ─────────────────────────────────────────────
+   StudyPoints — Orbit Wallet Hub
+   ───────────────────────────────────────────── */
+
+.modal-shop-hub {
+  gap: 18px;
+}
+
+.shop-hub-heading,
+.shop-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.shop-hub-kicker,
+.shop-section-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+}
+
+.shop-hub-heading h3 {
+  margin: 0;
+}
+
+.shop-hub-heading .muted {
+  max-width: 480px;
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.shop-hub-mark,
+.shop-section-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+  border-radius: 15px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  font-size: 19px;
+}
+
+.shop-wallet-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  overflow: hidden;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  border-radius: 25px;
+  background:
+    radial-gradient(
+      circle at 98% 0%,
+      color-mix(in srgb, var(--accent) 24%, transparent),
+      transparent 37%
+    ),
+    radial-gradient(
+      circle at 2% 100%,
+      color-mix(in srgb, var(--primary) 18%, transparent),
+      transparent 42%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--primary) 11%, var(--bg-soft)),
+      var(--surface)
+    );
+}
+
+.shop-wallet-glow {
+  position: absolute;
+  top: -86px;
+  right: -65px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  opacity: 0.7;
+  filter: blur(15px);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  pointer-events: none;
+}
+
+.shop-wallet-balance-block,
+.shop-earn-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.shop-wallet-balance-block {
+  min-width: min(100%, 260px);
+}
+
+.shop-wallet-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.modal-shop-hub .shop-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-family: "Sora", sans-serif;
+  font-size: clamp(30px, 5vw, 43px);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-balance-orbit {
+  display: grid;
+  place-items: center;
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  border-radius: 15px;
+  color: #ffffff;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 20px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow:
+    0 7px 17px color-mix(in srgb, var(--primary) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.shop-balance-unit {
+  align-self: flex-end;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+.shop-wallet-text {
+  max-width: 430px;
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.shop-earn-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  width: min(100%, 360px);
+}
+
+.shop-earn-btn {
+  min-height: 48px;
+  padding: 10px 13px;
+  border-radius: 15px;
+  font-size: 11px;
+}
+
+.shop-earn-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 13%, transparent);
+  font-size: 15px;
+}
+
+.shop-hub-tabs {
+  margin: 0;
+  background: var(--bg-soft);
+}
+
+.shop-hub-tabs .shop-tab-btn {
+  min-height: 44px;
+}
+
+.shop-hub-tabs .shop-tab-btn.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+}
+
+.modal-shop-hub .shop-panel {
+  padding: 19px;
+  border: 1px solid var(--border);
+  border-radius: 23px;
+  background: var(--bg-soft);
+}
+
+.shop-panel-heading h4 {
+  margin: 0;
+  font-family: "Sora", sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.shop-section-text {
+  margin: 7px 0 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.modal-shop-hub .shop-items-grid,
+.modal-shop-hub .shop-packages-grid {
+  gap: 12px;
+}
+
+.modal-shop-hub .shop-item-card,
+.modal-shop-hub .shop-package-card {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: 19px;
+  background: var(--surface);
+  transition:
+    transform 220ms var(--spring),
+    border-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.modal-shop-hub .shop-item-card::before,
+.modal-shop-hub .shop-package-card::before {
+  position: absolute;
+  top: -55px;
+  right: -55px;
+  width: 115px;
+  height: 115px;
+  border-radius: 50%;
+  content: "";
+  opacity: 0;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  transition: opacity 220ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .modal-shop-hub .shop-item-card:hover,
+  .modal-shop-hub .shop-package-card:hover {
+    border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+    transform: translateY(-4px);
+    box-shadow: 0 13px 27px color-mix(in srgb, var(--primary) 13%, transparent);
+  }
+
+  .modal-shop-hub .shop-item-card:hover::before,
+  .modal-shop-hub .shop-package-card:hover::before {
+    opacity: 1;
+  }
+}
+
+.modal-shop-hub .shop-pro-section {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 21px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in srgb, var(--accent) 13%, transparent),
+      transparent 42%
+    ),
+    var(--surface);
+}
+
+.modal-shop-hub .shop-pro-heading {
+  margin-bottom: 9px;
+}
+
+.modal-shop-hub .shop-history {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 21px;
+  background: var(--surface);
+}
+
+.modal-shop-hub .shop-history-heading {
+  margin-bottom: 14px;
+}
+
+.modal-shop-hub .shop-history-title {
+  margin: 0;
+}
+
+.modal-shop-hub .shop-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.modal-shop-hub .shop-packages-note {
+  margin-top: 14px;
+  text-align: center;
+}
+.modal-shop-hub .shop-hub-actions {
+  position: static;
+  z-index: auto;
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 0;
+  background: transparent;
+}
+
+@media (max-width: 620px) {
+  .shop-wallet-hero {
+    padding: 18px;
+    border-radius: 21px;
+  }
+
+  .shop-earn-actions {
+    width: 100%;
+  }
+
+  .modal-shop-hub .shop-panel,
+  .modal-shop-hub .shop-pro-section,
+  .modal-shop-hub .shop-history {
+    padding: 16px;
+    border-radius: 19px;
+  }
+}
+
+@media (max-width: 400px) {
+  .shop-earn-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-shop-hub .shop-balance {
+    font-size: 34px;
+  }
+}
+/* Shop mai curat: orbita rămâne singurul accent */
+.modal-shop-hub .shop-hub-mark,
+.modal-shop-hub .shop-section-icon {
+  display: none;
+}
+
+.modal-shop-hub .shop-hub-heading,
+.modal-shop-hub .shop-panel-heading {
+  align-items: center;
+}
+
+.modal-shop-hub .shop-earn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.modal-shop-hub .shop-earn-btn {
+  justify-content: center;
+  min-width: 145px;
+}
+
+.modal-shop-hub .shop-earn-icon {
+  display: none;
+}
+
+.modal-shop-hub .shop-panel-heading {
+  padding-bottom: 3px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.modal-shop-hub .shop-panel-heading h4 {
+  font-size: 15px;
+}
+
+.modal-shop-hub .shop-hub-heading h3 {
+  font-size: clamp(25px, 4vw, 31px);
+}
+
+.modal-shop-hub .shop-hub-heading .muted {
+  margin-top: 7px;
+}
+
+.modal-shop-hub .shop-section-text {
+  margin-top: 9px;
+}
+
+@media (max-width: 620px) {
+  .modal-shop-hub .shop-earn-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .modal-shop-hub .shop-earn-btn {
+    min-width: 0;
+  }
+}
+/* StudyPoints: icon orbital în locul monedei galbene */
+
+.shop-package-sp-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 4px 0 10px;
+  color: var(--text);
+  font-family: "Sora", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-sp-orbit {
+  position: relative;
+  display: inline-block;
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  overflow: hidden;
+  border: 1px solid rgba(71, 184, 236, 0.34);
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      circle at 50% 48%,
+      rgba(34, 130, 190, 0.7),
+      rgba(9, 35, 72, 0.96) 65%
+    );
+  box-shadow:
+    0 7px 17px rgba(4, 26, 58, 0.34),
+    inset 0 1px 0 rgba(132, 222, 255, 0.2);
+}
+
+.shop-sp-orbit-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #43c9f3;
+  box-shadow:
+    0 0 9px rgba(67, 201, 243, 0.95),
+    0 0 18px rgba(38, 137, 206, 0.7);
+  transform: translate(-50%, -50%);
+}
+
+.shop-sp-orbit-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 27px;
+  height: 12px;
+  border: 1px solid rgba(117, 214, 247, 0.72);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+}
+
+.shop-sp-orbit-ring::after {
+  position: absolute;
+  top: 50%;
+  left: -3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  content: "";
+  background: #9aeaff;
+  box-shadow: 0 0 6px rgba(154, 234, 255, 0.95);
+  transform: translateY(-50%);
+}
+
+/* Varianta mică pentru cardurile cu pachete */
+.shop-package-orbit {
+  width: 29px;
+  height: 29px;
+  flex-basis: 29px;
+  border-radius: 10px;
+}
+
+.shop-package-orbit .shop-sp-orbit-core {
+  width: 8px;
+  height: 8px;
+}
+
+.shop-package-orbit .shop-sp-orbit-ring {
+  width: 20px;
+  height: 9px;
+}
+
+.shop-package-orbit .shop-sp-orbit-ring::after {
+  width: 3px;
+  height: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shop-sp-orbit-ring {
+    animation: shop-sp-orbit-drift 5s ease-in-out infinite;
+  }
+
+  @keyframes shop-sp-orbit-drift {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) rotate(-25deg);
+    }
+
+    50% {
+      transform: translate(-50%, -50%) rotate(25deg);
+    }
+  }
+}
+/* Fix layout pentru orarul dinamic pe mobil */
+@media (max-width: 640px) {
+  #tab-schedule {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic .schedule-dynamic-shell {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #tab-schedule .schedule-grid.schedule-grid-dynamic .schedule-day-card {
+    display: flex !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #tab-schedule .schedule-day-head,
+  #tab-schedule .schedule-entry-list {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #tab-schedule .schedule-entry {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
